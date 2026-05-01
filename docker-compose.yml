@@ -356,6 +356,47 @@ services:
     networks:
       mle_net:
 
+  lse-api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    container_name: lse-api
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      # Tiled
+      RESULTS_TILED_URI: 'http://tiled:8000'
+      RESULTS_TILED_API_KEY: '${RESULTS_TILED_API_KEY}'
+      DATA_TILED_KEY: '${DATA_TILED_KEY}'
+      # MLflow
+      MLFLOW_TRACKING_URI: 'http://mlflow:5000'
+      MLFLOW_TRACKING_USERNAME: '${MLFLOW_TRACKING_USERNAME}'
+      MLFLOW_TRACKING_PASSWORD: '${MLFLOW_TRACKING_PASSWORD}'
+      # Prefect
+      PREFECT_API_URL: 'http://prefect:4200/api'
+      FLOW_NAME: '${FLOW_NAME}'
+      TIMEZONE: '${TIMEZONE}'
+    depends_on:
+      - tiled
+      - mlflow
+      - prefect
+    networks:
+      mle_net:
+
+  lse-ui:
+    build:
+      context: .
+      dockerfile: ui/Dockerfile
+    container_name: lse-ui
+    ports:
+      - "127.0.0.1:5173:5173"
+    environment:
+      API_TARGET: 'http://lse-api:8080'
+    depends_on:
+      - lse-api
+    networks:
+      mle_net:
+
 networks:
   mle_net:
     name: mle_net

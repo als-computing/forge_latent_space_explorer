@@ -1,0 +1,15 @@
+FROM python:3.11-slim
+
+WORKDIR /app/api
+
+# Install git for mlex git dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends git && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies from root pyproject.toml
+COPY pyproject.toml .
+RUN pip install --no-cache-dir ".[api]"
+
+# Copy full project so src/assets/default_models.json is accessible
+COPY . /app
+
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--reload"]

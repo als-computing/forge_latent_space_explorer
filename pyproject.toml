@@ -49,6 +49,17 @@ lse = [
     "mlflow==2.22.0"
 ]
 
+api = [
+    "fastapi",
+    "uvicorn[standard]",
+    "python-dotenv",
+    "httpx",
+    "pillow",
+    "numpy",
+    "mlex_file_manager @ git+https://github.com/mlexchange/mlex_file_manager.git",
+    "mlex_utils[all] @ git+https://github.com/mlexchange/mlex_utils.git",
+]
+
 dev = [
     "black==24.2.0",
     "flake8==7.0.0",
