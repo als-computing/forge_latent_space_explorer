@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import DataOverview from './components/DataOverview'
 import InfraStatus from './components/InfraStatus'
+import MlflowModelSelect from './components/MlflowModelSelect'
 import ModelSelect from './components/ModelSelect'
 import type { DataProjectDict } from './types/data'
 import type { ParameterValues } from './types/models'
@@ -9,6 +10,7 @@ function App() {
   // Placeholder: in the real app this comes from a file manager component
   const [tiledUri, setTiledUri] = useState('')
   const [submittedUri, setSubmittedUri] = useState<DataProjectDict | null>(null)
+  const [mlflowModel, setMlflowModel] = useState<string | null>(null)
 
   async function handleLoadData() {
     if (!tiledUri.trim()) return
@@ -68,6 +70,7 @@ function App() {
             modelType="clustering"
             onParamsChange={handleClusteringParams}
           />
+          <MlflowModelSelect value={mlflowModel} onChange={setMlflowModel} />
         </div>
       </div>
     </div>
