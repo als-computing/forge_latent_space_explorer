@@ -40,3 +40,9 @@ class JobSubmitResponse(BaseModel):
 class FlowRunOption(BaseModel):
     label: str
     value: str
+
+
+class JobStatusResponse(BaseModel):
+    ready: bool
+    state: str | None = None    # Prefect state of the relevant child job
+    result_uri: str | None = None

@@ -376,6 +376,9 @@ services:
       PREFECT_API_URL: 'http://prefect:4200/api'
       FLOW_NAME: '${FLOW_NAME}'
       TIMEZONE: '${TIMEZONE}'
+      READ_DIR: '/tiled_storage'
+    volumes:
+      - ${READ_DIR}:/tiled_storage
     depends_on:
       - tiled
       - mlflow

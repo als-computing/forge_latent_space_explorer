@@ -1,8 +1,11 @@
+from typing import Literal
+
 from fastapi import APIRouter, HTTPException, Query
 
 from schemas.jobs import (
     ClusteringJobRequest,
     FlowRunOption,
+    JobStatusResponse,
     JobSubmitResponse,
     LatentSpaceJobRequest,
     MlflowModelOption,
@@ -24,6 +27,20 @@ def list_mlflow_models():
 def list_flow_runs(tags: list[str] | None = Query(default=None)):
     try:
         return jobs_service.get_flow_runs(tags)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e))
+
+
+@router.get("/{job_id}/status", response_model=JobStatusResponse)
+def get_job_status(
+    job_id: str,
+    kind: Literal["latent-space", "clustering"],
+    project_name: str,
+):
+    try:
+        if kind == "latent-space":
+            return jobs_service.get_latent_space_job_status(job_id, project_name)
+        return jobs_service.get_clustering_job_status(job_id, project_name)
     except Exception as e:
         raise HTTPException(status_code=502, detail=str(e))
 

@@ -1,6 +1,7 @@
 import type {
   ClusteringJobRequest,
   FlowRunOption,
+  JobStatusResponse,
   JobSubmitResponse,
   LatentSpaceJobRequest,
   MlflowModelOption,
@@ -31,6 +32,17 @@ export async function submitLatentSpaceJob(
     const err = await res.json().catch(() => ({ detail: res.statusText }))
     throw new Error(err.detail ?? 'Job submission failed')
   }
+  return res.json()
+}
+
+export async function fetchJobStatus(
+  jobId: string,
+  kind: 'latent-space' | 'clustering',
+  projectName: string,
+): Promise<JobStatusResponse> {
+  const params = new URLSearchParams({ kind, project_name: projectName })
+  const res = await fetch(`/api/jobs/${encodeURIComponent(jobId)}/status?${params}`)
+  if (!res.ok) throw new Error(`Failed to fetch job status: ${res.status}`)
   return res.json()
 }
 

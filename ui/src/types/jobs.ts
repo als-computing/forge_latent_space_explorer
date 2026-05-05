@@ -38,3 +38,9 @@ export interface FlowRunOption {
   label: string
   value: string
 }
+
+export interface JobStatusResponse {
+  ready: boolean
+  state: string | null
+  result_uri: string | null
+}

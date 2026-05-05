@@ -7,11 +7,14 @@ from datetime import datetime
 from urllib.parse import urljoin
 from zoneinfo import ZoneInfo
 
+import httpx
+
 from file_manager.data_project import DataProject
 from mlex_utils.mlflow_utils.mlflow_model_client import MLflowModelClient
 from mlex_utils.prefect_utils.core import (
     get_children_flow_run_ids,
     get_flow_run_name,
+    get_flow_run_state,
     query_flow_runs,
     schedule_prefect_flow,
 )
@@ -19,6 +22,7 @@ from mlex_utils.prefect_utils.core import (
 from schemas.jobs import (
     ClusteringJobRequest,
     FlowRunOption,
+    JobStatusResponse,
     JobSubmitResponse,
     LatentSpaceJobRequest,
     MlflowModelOption,
@@ -42,6 +46,59 @@ _mlflow_client = MLflowModelClient()
 def get_flow_runs(tags: list[str] | None = None) -> list[FlowRunOption]:
     runs = query_flow_runs(tags=tags or PREFECT_TAGS)
     return [FlowRunOption(**r) for r in runs]
+
+
+def _result_exists_in_tiled(result_uri: str) -> bool:
+    """Return True if the result node is reachable in the results Tiled instance."""
+    url = f"{RESULTS_TILED_URI.rstrip('/')}/api/v1/metadata/{result_uri.lstrip('/')}"
+    headers = {"Authorization": f"Bearer {RESULTS_TILED_API_KEY}"} if RESULTS_TILED_API_KEY else {}
+    try:
+        r = httpx.get(url, headers=headers, timeout=5)
+        return r.status_code == 200
+    except Exception:
+        return False
+
+
+def get_latent_space_job_status(job_id: str, project_name: str) -> JobStatusResponse:
+    """Check whether the dim-reduction child job has completed and its results exist in Tiled."""
+    try:
+        children = get_children_flow_run_ids(job_id)
+    except Exception:
+        logger.error(traceback.format_exc())
+        return JobStatusResponse(ready=False, state=None)
+
+    if len(children) < 2:
+        return JobStatusResponse(ready=False, state=None)
+
+    child_id = children[1]
+    state = get_flow_run_state(child_id)
+    if state != "COMPLETED":
+        return JobStatusResponse(ready=False, state=state)
+
+    result_uri = f"{USER}/{project_name}/{child_id}"
+    ready = _result_exists_in_tiled(result_uri)
+    return JobStatusResponse(ready=ready, state=state, result_uri=result_uri if ready else None)
+
+
+def get_clustering_job_status(job_id: str, project_name: str) -> JobStatusResponse:
+    """Check whether the clustering child job has completed and its results exist in Tiled."""
+    try:
+        children = get_children_flow_run_ids(job_id)
+    except Exception:
+        logger.error(traceback.format_exc())
+        return JobStatusResponse(ready=False, state=None)
+
+    if not children:
+        return JobStatusResponse(ready=False, state=None)
+
+    child_id = children[0]
+    state = get_flow_run_state(child_id)
+    if state != "COMPLETED":
+        return JobStatusResponse(ready=False, state=state)
+
+    result_uri = f"{USER}/{project_name}/{child_id}"
+    ready = _result_exists_in_tiled(result_uri)
+    return JobStatusResponse(ready=ready, state=state, result_uri=result_uri if ready else None)
 
 
 def get_mlflow_models() -> list[MlflowModelOption]:
