@@ -1,16 +1,23 @@
 import { useState } from 'react'
 import DataOverview from './components/DataOverview'
 import InfraStatus from './components/InfraStatus'
+import JobPanel from './components/JobPanel'
 import MlflowModelSelect from './components/MlflowModelSelect'
 import ModelSelect from './components/ModelSelect'
 import type { DataProjectDict } from './types/data'
 import type { ParameterValues } from './types/models'
 
 function App() {
-  // Placeholder: in the real app this comes from a file manager component
   const [tiledUri, setTiledUri] = useState('')
-  const [submittedUri, setSubmittedUri] = useState<DataProjectDict | null>(null)
+  const [dataProjectDict, setDataProjectDict] = useState<DataProjectDict | null>(null)
+
+  const [dimRedModelName, setDimRedModelName] = useState<string | null>(null)
+  const [dimRedParams, setDimRedParams] = useState<ParameterValues>({})
+  const [clusteringModelName, setClusteringModelName] = useState<string | null>(null)
+  const [clusteringParams, setClusteringParams] = useState<ParameterValues>({})
+
   const [mlflowModel, setMlflowModel] = useState<string | null>(null)
+  const [latentSpaceJobId, setLatentSpaceJobId] = useState<string | null>(null)
 
   async function handleLoadData() {
     if (!tiledUri.trim()) return
@@ -20,12 +27,18 @@ function App() {
       body: JSON.stringify({ uri: tiledUri.trim() }),
     })
     if (!res.ok) return
-    const dict = await res.json()
-    setSubmittedUri(dict)
+    setDataProjectDict(await res.json())
   }
 
-  function handleDimRedParams(_modelName: string, _params: ParameterValues) {}
-  function handleClusteringParams(_modelName: string, _params: ParameterValues) {}
+  function handleDimRedParams(modelName: string, params: ParameterValues) {
+    setDimRedModelName(modelName)
+    setDimRedParams(params)
+  }
+
+  function handleClusteringParams(modelName: string, params: ParameterValues) {
+    setClusteringModelName(modelName)
+    setClusteringParams(params)
+  }
 
   return (
     <div style={{ maxWidth: 960, margin: '40px auto', fontFamily: 'sans-serif', padding: '0 16px' }}>
@@ -36,7 +49,6 @@ function App() {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
         <div>
-          {/* Placeholder data source input — replace with file manager later */}
           <div style={{ border: '1px solid #ccc', borderRadius: 6, padding: 16, marginBottom: 16 }}>
             <h3 style={{ marginTop: 0 }}>Data Source</h3>
             <label style={{ display: 'block', marginBottom: 8 }}>
@@ -53,7 +65,7 @@ function App() {
           </div>
 
           <DataOverview
-            dataProjectDict={submittedUri}
+            dataProjectDict={dataProjectDict}
             logTransform={false}
             percentiles={[0, 100]}
           />
@@ -71,6 +83,16 @@ function App() {
             onParamsChange={handleClusteringParams}
           />
           <MlflowModelSelect value={mlflowModel} onChange={setMlflowModel} />
+          <JobPanel
+            dataProjectDict={dataProjectDict}
+            dimRedModelName={dimRedModelName}
+            dimRedParams={dimRedParams}
+            clusteringModelName={clusteringModelName}
+            clusteringParams={clusteringParams}
+            mlflowModelId={mlflowModel}
+            latentSpaceJobId={latentSpaceJobId}
+            onLatentSpaceJobSubmitted={setLatentSpaceJobId}
+          />
         </div>
       </div>
     </div>

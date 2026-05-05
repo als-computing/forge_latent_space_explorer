@@ -13,7 +13,6 @@ allow-direct-references = true
 name = "latent_space_explorer"
 version = "0.1.0"
 description = "Latent Space Explorer"
-readme = { file = "README.md", content-type = "text/markdown" }
 requires-python = ">=3.11"
 
 dependencies = []
