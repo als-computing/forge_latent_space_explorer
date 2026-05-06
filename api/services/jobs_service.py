@@ -9,7 +9,6 @@ from zoneinfo import ZoneInfo
 
 import httpx
 
-from file_manager.data_project import DataProject
 from mlex_utils.mlflow_utils.mlflow_model_client import MLflowModelClient
 from mlex_utils.prefect_utils.core import (
     get_children_flow_run_ids,
@@ -114,16 +113,17 @@ def _results_tiled_url(user: str, project_name: str) -> str:
 
 
 def submit_latent_space_job(req: LatentSpaceJobRequest) -> JobSubmitResponse:
-    data_project = DataProject.from_dict(req.data_project_dict)
-    data_uris = [ds.uri for ds in data_project.datasets]
+    data_uris = [ds["uri"] for ds in req.data_project_dict["datasets"]]
+    data_type = req.data_project_dict["data_type"]
+    root_uri = req.data_project_dict["root_uri"]
 
     results_dir = f"{WRITE_DIR}/{USER}"
 
     io_parameters = {
         "uid_retrieve": "",
         "data_uris": data_uris,
-        "data_type": data_project.data_type,
-        "root_uri": data_project.root_uri,
+        "data_type": data_type,
+        "root_uri": root_uri,
         "models_dir": f"{results_dir}/models",
         "results_tiled_uri": _results_tiled_url(USER, req.project_name),
         "results_dir": results_dir,
@@ -186,24 +186,14 @@ def submit_clustering_job(req: ClusteringJobRequest) -> JobSubmitResponse:
     child_job_id = children_job_ids[1]
 
     expected_uri = f"/{USER}/{req.project_name}/{child_job_id}"
-    data_project_fvec = DataProject.from_dict(
-        {
-            "root_uri": RESULTS_TILED_URI,
-            "data_type": "tiled",
-            "datasets": [{"uri": expected_uri, "cumulative_data_count": 0}],
-            "project_id": None,
-        },
-        api_key=RESULTS_TILED_API_KEY,
-    )
-
-    data_uris = [ds.uri for ds in data_project_fvec.datasets]
+    data_uris = [expected_uri]
     results_dir = f"{WRITE_DIR}/{USER}"
 
     io_parameters = {
         "uid_retrieve": "",
         "data_uris": data_uris,
-        "data_type": data_project_fvec.data_type,
-        "root_uri": data_project_fvec.root_uri,
+        "data_type": "tiled",
+        "root_uri": RESULTS_TILED_URI,
         "save_model_path": f"{results_dir}/models",
         "results_tiled_uri": _results_tiled_url(USER, req.project_name),
         "results_dir": results_dir,

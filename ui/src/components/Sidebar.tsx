@@ -1,22 +1,29 @@
 import { useState } from 'react'
 import { Settings, ChevronDown } from 'lucide-react'
+import DataTransformation from './DataTransformation'
+import FileBrowser from './FileBrowser'
+import type { DataProjectDict } from '../types/data'
 
-const SECTIONS = [
-  { id: 'data-selection', title: 'Data selection' },
-  { id: 'data-transformation', title: 'Data transformation' },
-  { id: 'dimension-reduction', title: 'Dimension Reduction' },
-  { id: 'clustering', title: 'Clustering' },
-  { id: 'experiment-replay', title: 'Experiment Replay' },
-]
+interface Props {
+  onDataLoad: (dict: DataProjectDict) => void
+  logTransform: boolean
+  onLogTransformChange: (v: boolean) => void
+  percentiles: [number, number]
+  onPercentilesChange: (v: [number, number]) => void
+  mask: string
+  onMaskChange: (v: string) => void
+}
 
 function AccordionItem({
   title,
+  defaultOpen,
   children,
 }: {
   title: string
+  defaultOpen?: boolean
   children?: React.ReactNode
 }) {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(defaultOpen ?? false)
 
   return (
     <div style={{ borderBottom: '1px solid #dee2e6' }}>
@@ -52,7 +59,12 @@ function AccordionItem({
   )
 }
 
-export default function Sidebar() {
+export default function Sidebar({
+  onDataLoad,
+  logTransform, onLogTransformChange,
+  percentiles, onPercentilesChange,
+  mask, onMaskChange,
+}: Props) {
   const [isOpen, setIsOpen] = useState(true)
 
   return (
@@ -85,13 +97,26 @@ export default function Sidebar() {
         </div>
 
         <div style={{ flex: 1 }}>
-          {SECTIONS.map(({ id, title }) => (
-            <AccordionItem key={id} title={title} />
-          ))}
+          <AccordionItem title="Data selection" defaultOpen>
+            <FileBrowser onLoad={onDataLoad} />
+          </AccordionItem>
+          <AccordionItem title="Data transformation">
+            <DataTransformation
+              logTransform={logTransform}
+              onLogTransformChange={onLogTransformChange}
+              percentiles={percentiles}
+              onPercentilesChange={onPercentilesChange}
+              mask={mask}
+              onMaskChange={onMaskChange}
+            />
+          </AccordionItem>
+          <AccordionItem title="Dimension Reduction" />
+          <AccordionItem title="Clustering" />
+          <AccordionItem title="Experiment Replay" />
         </div>
       </div>
 
-      {/* Toggle button (bottom-right, fixed) */}
+      {/* Toggle button */}
       <div
         style={{
           position: 'fixed',
