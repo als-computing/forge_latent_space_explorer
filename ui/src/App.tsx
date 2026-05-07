@@ -10,18 +10,25 @@ function App() {
   const [logTransform, setLogTransform] = useState(false)
   const [percentiles, setPercentiles] = useState<[number, number]>([0, 100])
   const [mask, setMask] = useState('None')
+  const [latentSpaceJobId, setLatentSpaceJobId] = useState<string | null>(null)
+  const [latentSpaceReady, setLatentSpaceReady] = useState(false)
+  const [projectName, setProjectName] = useState('my-project')
 
   return (
     <div>
       <Header />
       <Sidebar
         onDataLoad={setDataProjectDict}
+        dataProjectDict={dataProjectDict}
         logTransform={logTransform}
         onLogTransformChange={setLogTransform}
         percentiles={percentiles}
         onPercentilesChange={setPercentiles}
         mask={mask}
         onMaskChange={setMask}
+        onLatentSpaceJobSubmitted={setLatentSpaceJobId}
+        onProjectNameChange={setProjectName}
+        onLatentSpaceReadyChange={setLatentSpaceReady}
       />
       <div style={{ padding: '10px 10px 10px 520px' }}>
         <DataOverview
@@ -30,12 +37,14 @@ function App() {
           percentiles={percentiles}
         />
         <VisualizationPanel
-          latentSpaceJobId={null}
+          latentSpaceJobId={latentSpaceJobId}
           clusteringJobId={null}
-          projectName=""
-          latentSpaceReady={false}
+          projectName={projectName}
+          latentSpaceReady={latentSpaceReady}
           clusteringReady={false}
           dataProjectDict={dataProjectDict}
+          logTransform={logTransform}
+          percentiles={percentiles}
         />
       </div>
     </div>

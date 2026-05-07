@@ -1,17 +1,22 @@
 import { useState } from 'react'
 import { Settings, ChevronDown } from 'lucide-react'
 import DataTransformation from './DataTransformation'
+import DimensionReduction from './DimensionReduction'
 import FileBrowser from './FileBrowser'
 import type { DataProjectDict } from '../types/data'
 
 interface Props {
   onDataLoad: (dict: DataProjectDict) => void
+  dataProjectDict: DataProjectDict | null
   logTransform: boolean
   onLogTransformChange: (v: boolean) => void
   percentiles: [number, number]
   onPercentilesChange: (v: [number, number]) => void
   mask: string
   onMaskChange: (v: string) => void
+  onLatentSpaceJobSubmitted: (jobId: string) => void
+  onProjectNameChange: (name: string) => void
+  onLatentSpaceReadyChange: (ready: boolean) => void
 }
 
 function AccordionItem({
@@ -61,9 +66,13 @@ function AccordionItem({
 
 export default function Sidebar({
   onDataLoad,
+  dataProjectDict,
   logTransform, onLogTransformChange,
   percentiles, onPercentilesChange,
   mask, onMaskChange,
+  onLatentSpaceJobSubmitted,
+  onProjectNameChange,
+  onLatentSpaceReadyChange,
 }: Props) {
   const [isOpen, setIsOpen] = useState(true)
 
@@ -110,7 +119,17 @@ export default function Sidebar({
               onMaskChange={onMaskChange}
             />
           </AccordionItem>
-          <AccordionItem title="Dimension Reduction" />
+          <AccordionItem title="Dimension Reduction">
+            <DimensionReduction
+              dataProjectDict={dataProjectDict}
+              logTransform={logTransform}
+              percentiles={percentiles}
+              mask={mask}
+              onJobSubmitted={onLatentSpaceJobSubmitted}
+              onProjectNameChange={onProjectNameChange}
+              onReadyChange={onLatentSpaceReadyChange}
+            />
+          </AccordionItem>
           <AccordionItem title="Clustering" />
           <AccordionItem title="Experiment Replay" />
         </div>

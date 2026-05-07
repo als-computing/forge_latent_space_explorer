@@ -91,11 +91,6 @@ export default function VisualizationPanel({
     }
   }
 
-  void handleShowFeatureVectors
-  void handleShowClusters
-  void latentSpaceReady
-  void clusteringReady
-
   return (
     <div style={{
       border: '1px solid rgba(0,0,0,0.175)',
@@ -113,8 +108,41 @@ export default function VisualizationPanel({
         borderBottom: '1px solid rgba(0,0,0,0.175)',
         fontWeight: 500,
         flexShrink: 0,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
       }}>
         Latent Space Analysis
+        <button
+          onClick={handleShowFeatureVectors}
+          disabled={!latentSpaceReady || !latentSpaceJobId}
+          style={{
+            padding: '2px 10px',
+            fontSize: '0.8rem',
+            cursor: latentSpaceReady && latentSpaceJobId ? 'pointer' : 'not-allowed',
+            border: '1px solid #0d6efd',
+            backgroundColor: 'white',
+            color: '#0d6efd',
+            borderRadius: 4,
+          }}
+        >
+          Show Feature Vectors
+        </button>
+        <button
+          onClick={handleShowClusters}
+          disabled={!clusteringReady || !clusteringJobId}
+          style={{
+            padding: '2px 10px',
+            fontSize: '0.8rem',
+            cursor: clusteringReady && clusteringJobId ? 'pointer' : 'not-allowed',
+            border: '1px solid #0d6efd',
+            backgroundColor: 'white',
+            color: '#0d6efd',
+            borderRadius: 4,
+          }}
+        >
+          Show Clusters
+        </button>
       </div>
 
       {/* Card body */}

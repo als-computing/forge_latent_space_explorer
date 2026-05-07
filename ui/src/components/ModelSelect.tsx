@@ -25,11 +25,13 @@ export default function ModelSelect({ label, modelType, onParamsChange }: Props)
         setModels(data)
         if (data.length > 0) {
           setSelected(data[0])
-          setParams(defaultValues(data[0]))
+          const defaults = defaultValues(data[0])
+          setParams(defaults)
+          onParamsChange?.(data[0].model_name, defaults)
         }
       })
       .catch((e) => setError(e.message))
-  }, [modelType])
+  }, [modelType])  // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleModelChange(modelName: string) {
     const model = models.find((m) => m.model_name === modelName) ?? null

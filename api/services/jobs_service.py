@@ -114,6 +114,12 @@ def _results_tiled_url(user: str, project_name: str) -> str:
 
 def submit_latent_space_job(req: LatentSpaceJobRequest) -> JobSubmitResponse:
     data_uris = [ds["uri"] for ds in req.data_project_dict["datasets"]]
+    if not data_uris:
+        return JobSubmitResponse(
+            job_uid=None,
+            message="No datasets selected. Please select a data directory with images before submitting.",
+            status="error",
+        )
     data_type = req.data_project_dict["data_type"]
     root_uri = req.data_project_dict["root_uri"]
 
