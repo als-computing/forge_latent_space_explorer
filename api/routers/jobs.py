@@ -45,6 +45,14 @@ def get_job_status(
         raise HTTPException(status_code=502, detail=str(e))
 
 
+@router.get("/{job_id}/logs", response_model=list[str])
+def get_logs(job_id: str):
+    try:
+        return jobs_service.get_job_logs(job_id)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e))
+
+
 @router.post("/latent-space", response_model=JobSubmitResponse)
 def submit_latent_space(req: LatentSpaceJobRequest):
     try:

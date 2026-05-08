@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Eraser, LassoSelect, SquareDashedMousePointer } from 'lucide-react'
 import { fetchClusters, fetchFeatureVectors, fetchHeatmap } from '../api/data'
 import type { ClusterResponse, DataProjectDict, FeatureVectorResponse, HeatmapResponse } from '../types/data'
@@ -9,11 +9,11 @@ interface Props {
   latentSpaceJobId: string | null
   clusteringJobId: string | null
   projectName: string
-  latentSpaceReady: boolean
   clusteringReady: boolean
   dataProjectDict: DataProjectDict | null
   logTransform?: boolean
   percentiles?: [number, number]
+  showFVTrigger?: number
 }
 
 const toggleBtnStyle = (active: boolean): React.CSSProperties => ({
@@ -31,11 +31,11 @@ export default function VisualizationPanel({
   latentSpaceJobId,
   clusteringJobId,
   projectName,
-  latentSpaceReady,
   clusteringReady,
   dataProjectDict,
   logTransform = false,
   percentiles = [0, 100],
+  showFVTrigger = 0,
 }: Props) {
   const [scatterData, setScatterData] = useState<FeatureVectorResponse | ClusterResponse | null>(null)
   const [heatmapResult, setHeatmapResult] = useState<HeatmapResponse | null>(null)
@@ -48,6 +48,10 @@ export default function VisualizationPanel({
     setHeatmapResult(null)
     setScatterData(await fetchFeatureVectors(latentSpaceJobId, projectName))
   }
+
+  useEffect(() => {
+    if (showFVTrigger > 0) handleShowFeatureVectors()
+  }, [showFVTrigger])  // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleShowClusters() {
     if (!latentSpaceJobId || !clusteringJobId || !projectName) return
@@ -113,21 +117,6 @@ export default function VisualizationPanel({
         gap: 8,
       }}>
         Latent Space Analysis
-        <button
-          onClick={handleShowFeatureVectors}
-          disabled={!latentSpaceReady || !latentSpaceJobId}
-          style={{
-            padding: '2px 10px',
-            fontSize: '0.8rem',
-            cursor: latentSpaceReady && latentSpaceJobId ? 'pointer' : 'not-allowed',
-            border: '1px solid #0d6efd',
-            backgroundColor: 'white',
-            color: '#0d6efd',
-            borderRadius: 4,
-          }}
-        >
-          Show Feature Vectors
-        </button>
         <button
           onClick={handleShowClusters}
           disabled={!clusteringReady || !clusteringJobId}

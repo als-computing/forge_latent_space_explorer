@@ -4,17 +4,20 @@ import { useJobStatus } from '../hooks/useJobStatus'
 import type { DataProjectDict } from '../types/data'
 import type { JobSubmitResponse } from '../types/jobs'
 import type { ParameterValues } from '../types/models'
+import JobRunSelect from './JobRunSelect'
+import LogsModal from './LogsModal'
 import MlflowModelSelect from './MlflowModelSelect'
 import ModelSelect from './ModelSelect'
 
 interface Props {
   dataProjectDict: DataProjectDict | null
+  projectName: string
+  currentJobId: string | null
   logTransform: boolean
   percentiles: [number, number]
   mask: string
   onJobSubmitted: (jobId: string) => void
-  onProjectNameChange: (name: string) => void
-  onReadyChange: (ready: boolean) => void
+  onShowFeatureVectors: () => void
 }
 
 const resultColor: Record<string, string> = {
@@ -23,33 +26,43 @@ const resultColor: Record<string, string> = {
   error: 'red',
 }
 
+const divider = <hr style={{ border: 'none', borderTop: '1px solid #dee2e6', margin: '16px 0' }} />
+
 export default function DimensionReduction({
   dataProjectDict,
+  projectName,
+  currentJobId,
   logTransform,
   percentiles,
   mask,
   onJobSubmitted,
-  onProjectNameChange,
-  onReadyChange,
+  onShowFeatureVectors,
 }: Props) {
   const [mlflowModelId, setMlflowModelId] = useState<string | null>(null)
   const [dimRedModelName, setDimRedModelName] = useState<string | null>(null)
   const [dimRedParams, setDimRedParams] = useState<ParameterValues>({})
-  const [projectName, setProjectName] = useState('my-project')
   const [jobName, setJobName] = useState('latent-space-job')
   const [submitting, setSubmitting] = useState(false)
   const [result, setResult] = useState<JobSubmitResponse | null>(null)
-  const [latentSpaceJobId, setLatentSpaceJobId] = useState<string | null>(null)
 
-  const status = useJobStatus(latentSpaceJobId, 'latent-space', projectName)
+  // Active job — set by new submission OR selection from past-jobs dropdown
+  const [activeJobId, setActiveJobId] = useState<string | null>(null)
+  const [showLogs, setShowLogs] = useState(false)
+  const [showFV, setShowFV] = useState(false)
+
+  const effectiveJobId = activeJobId ?? currentJobId
+  const status = useJobStatus(effectiveJobId, 'latent-space', projectName)
 
   useEffect(() => {
-    onReadyChange(status?.ready ?? false)
+    if (!(status?.ready)) setShowFV(false)
   }, [status?.ready])  // eslint-disable-line react-hooks/exhaustive-deps
 
-  function handleProjectNameChange(name: string) {
-    setProjectName(name)
-    onProjectNameChange(name)
+  function handleSelectPastJob(jobId: string | null) {
+    if (!jobId) return
+    setActiveJobId(jobId)
+    onJobSubmitted(jobId)
+    setResult(null)
+    setShowFV(false)
   }
 
   function handleParamsChange(modelName: string, params: ParameterValues) {
@@ -63,6 +76,7 @@ export default function DimensionReduction({
     if (!dataProjectDict || !mlflowModelId || !dimRedModelName) return
     setSubmitting(true)
     setResult(null)
+    setShowFV(false)
     try {
       const res = await submitLatentSpaceJob({
         data_project_dict: dataProjectDict,
@@ -77,7 +91,7 @@ export default function DimensionReduction({
       })
       setResult(res)
       if (res.job_uid) {
-        setLatentSpaceJobId(res.job_uid)
+        setActiveJobId(res.job_uid)
         onJobSubmitted(res.job_uid)
       }
     } catch (e) {
@@ -87,6 +101,11 @@ export default function DimensionReduction({
     }
   }
 
+  function handleToggleFV(checked: boolean) {
+    setShowFV(checked)
+    if (checked) onShowFeatureVectors()
+  }
+
   const statusColor = status
     ? status.ready ? 'green' : status.state === 'FAILED' || status.state === 'CRASHED' ? 'red' : '#f59e0b'
     : '#ccc'
@@ -94,8 +113,11 @@ export default function DimensionReduction({
     ? status.ready ? 'Results ready' : status.state ? `State: ${status.state}` : 'Checking…'
     : null
 
+    console.log("status", status)
+
   return (
     <div>
+      {/* ── New job submission ── */}
       <MlflowModelSelect value={mlflowModelId} onChange={setMlflowModelId} />
 
       <ModelSelect
@@ -104,15 +126,12 @@ export default function DimensionReduction({
         onParamsChange={handleParamsChange}
       />
 
-      <label style={{ display: 'block', marginBottom: 8 }}>
+      <div style={{ marginBottom: 8 }}>
         <span style={{ fontWeight: 600 }}>Project Name</span>
-        <input
-          type="text"
-          value={projectName}
-          onChange={(e) => handleProjectNameChange(e.target.value)}
-          style={{ display: 'block', width: '100%', marginTop: 4, padding: 6, boxSizing: 'border-box' }}
-        />
-      </label>
+        <div style={{ marginTop: 4, padding: 6, background: '#f8f9fa', borderRadius: 4, fontSize: 13, color: projectName ? '#212529' : '#999' }}>
+          {projectName || 'Load data to generate'}
+        </div>
+      </div>
 
       <label style={{ display: 'block', marginBottom: 12 }}>
         Job Name
@@ -138,18 +157,57 @@ export default function DimensionReduction({
       {dataProjectDict && !mlflowModelId && (
         <div style={{ fontSize: 12, color: '#999', marginBottom: 4 }}>Select an MLflow model above.</div>
       )}
-
       {result && (
         <div style={{ fontSize: 13, color: resultColor[result.status] ?? '#333', marginBottom: 8 }}>
           {result.message}
         </div>
       )}
 
-      {status && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: statusColor }}>
+      {divider}
+
+      {/* ── Past jobs ── */}
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8 }}>
+        <div style={{ flex: 1 }}>
+          <JobRunSelect
+            label="Past Latent Space Jobs"
+            tags={['latent-space-explorer', 'latent-space']}
+            value={effectiveJobId}
+            onChange={handleSelectPastJob}
+          />
+        </div>
+        <button
+          onClick={() => setShowLogs(true)}
+          disabled={!activeJobId}
+          style={{ marginBottom: 12, padding: '6px 12px', whiteSpace: 'nowrap', cursor: activeJobId ? 'pointer' : 'not-allowed' }}
+        >
+          View Logs
+        </button>
+      </div>
+
+      {/* Status indicator */}
+      {effectiveJobId && status && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: statusColor, marginBottom: 12 }}>
           <span style={{ width: 8, height: 8, borderRadius: '50%', background: statusColor, display: 'inline-block' }} />
           {statusLabel}
         </div>
+      )}
+
+      {/* Show Feature Vectors toggle */}
+      <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: status?.ready ? 'pointer' : 'not-allowed', opacity: status?.ready ? 1 : 0.45 }}>
+        <input
+          type="checkbox"
+          role="switch"
+          checked={showFV}
+          disabled={!status?.ready}
+          onChange={e => handleToggleFV(e.target.checked)}
+          style={{ width: 16, height: 16 }}
+        />
+        <span style={{ fontSize: 14 }}>Show Feature Vectors</span>
+      </label>
+
+      {/* Logs modal */}
+      {showLogs && effectiveJobId && (
+        <LogsModal jobId={effectiveJobId} onClose={() => setShowLogs(false)} />
       )}
     </div>
   )

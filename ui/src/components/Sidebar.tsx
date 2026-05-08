@@ -8,15 +8,16 @@ import type { DataProjectDict } from '../types/data'
 interface Props {
   onDataLoad: (dict: DataProjectDict) => void
   dataProjectDict: DataProjectDict | null
+  projectName: string
   logTransform: boolean
   onLogTransformChange: (v: boolean) => void
   percentiles: [number, number]
   onPercentilesChange: (v: [number, number]) => void
   mask: string
   onMaskChange: (v: string) => void
+  latentSpaceJobId: string | null
   onLatentSpaceJobSubmitted: (jobId: string) => void
-  onProjectNameChange: (name: string) => void
-  onLatentSpaceReadyChange: (ready: boolean) => void
+  onShowFeatureVectors: () => void
 }
 
 function AccordionItem({
@@ -67,12 +68,13 @@ function AccordionItem({
 export default function Sidebar({
   onDataLoad,
   dataProjectDict,
+  projectName,
   logTransform, onLogTransformChange,
   percentiles, onPercentilesChange,
   mask, onMaskChange,
+  latentSpaceJobId,
   onLatentSpaceJobSubmitted,
-  onProjectNameChange,
-  onLatentSpaceReadyChange,
+  onShowFeatureVectors,
 }: Props) {
   const [isOpen, setIsOpen] = useState(true)
 
@@ -122,12 +124,13 @@ export default function Sidebar({
           <AccordionItem title="Dimension Reduction">
             <DimensionReduction
               dataProjectDict={dataProjectDict}
+              projectName={projectName}
+              currentJobId={latentSpaceJobId}
               logTransform={logTransform}
               percentiles={percentiles}
               mask={mask}
               onJobSubmitted={onLatentSpaceJobSubmitted}
-              onProjectNameChange={onProjectNameChange}
-              onReadyChange={onLatentSpaceReadyChange}
+              onShowFeatureVectors={onShowFeatureVectors}
             />
           </AccordionItem>
           <AccordionItem title="Clustering" />

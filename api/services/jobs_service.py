@@ -7,11 +7,12 @@ from datetime import datetime
 from urllib.parse import urljoin
 from zoneinfo import ZoneInfo
 
-import httpx
+from tiled.client import from_uri as tiled_from_uri
 
 from mlex_utils.mlflow_utils.mlflow_model_client import MLflowModelClient
 from mlex_utils.prefect_utils.core import (
     get_children_flow_run_ids,
+    get_flow_run_logs,
     get_flow_run_name,
     get_flow_run_state,
     query_flow_runs,
@@ -28,7 +29,7 @@ from schemas.jobs import (
 )
 from services import model_service
 
-MODE = os.getenv("MODE", "dev")
+MODE = os.getenv("MODE", "")
 FLOW_NAME = os.getenv("FLOW_NAME", "")
 PREFECT_TAGS = json.loads(os.getenv("PREFECT_TAGS", '["latent-space-explorer"]'))
 RESULTS_TILED_URI = os.getenv("RESULTS_TILED_URI", "")
@@ -42,6 +43,16 @@ logger = logging.getLogger(__name__)
 _mlflow_client = MLflowModelClient()
 
 
+def _prepare_project_container(user: str, project_name: str) -> None:
+    """Create {user} and {user}/{project_name} containers in results Tiled if they don't exist."""
+    client = tiled_from_uri(RESULTS_TILED_URI, api_key=RESULTS_TILED_API_KEY or None)
+    for key in [user, project_name]:
+        if key in client.keys():
+            client = client[key]
+        else:
+            client = client.create_container(key=key)
+
+
 def get_flow_runs(tags: list[str] | None = None) -> list[FlowRunOption]:
     runs = query_flow_runs(tags=tags or PREFECT_TAGS)
     return [FlowRunOption(**r) for r in runs]
@@ -49,11 +60,11 @@ def get_flow_runs(tags: list[str] | None = None) -> list[FlowRunOption]:
 
 def _result_exists_in_tiled(result_uri: str) -> bool:
     """Return True if the result node is reachable in the results Tiled instance."""
-    url = f"{RESULTS_TILED_URI.rstrip('/')}/api/v1/metadata/{result_uri.lstrip('/')}"
-    headers = {"Authorization": f"Bearer {RESULTS_TILED_API_KEY}"} if RESULTS_TILED_API_KEY else {}
     try:
-        r = httpx.get(url, headers=headers, timeout=5)
-        return r.status_code == 200
+        client = tiled_from_uri(RESULTS_TILED_URI, api_key=RESULTS_TILED_API_KEY or None)
+        for part in result_uri.strip("/").split("/"):
+            client = client[part]
+        return True
     except Exception:
         return False
 
@@ -71,12 +82,14 @@ def get_latent_space_job_status(job_id: str, project_name: str) -> JobStatusResp
 
     child_id = children[1]
     state = get_flow_run_state(child_id)
-    if state != "COMPLETED":
-        return JobStatusResponse(ready=False, state=state)
+    state_str = state.value if hasattr(state, "value") else str(state)
+
+    if state_str != "COMPLETED":
+        return JobStatusResponse(ready=False, state=state_str)
 
     result_uri = f"{USER}/{project_name}/{child_id}"
     ready = _result_exists_in_tiled(result_uri)
-    return JobStatusResponse(ready=ready, state=state, result_uri=result_uri if ready else None)
+    return JobStatusResponse(ready=ready, state=state_str, result_uri=result_uri if ready else None)
 
 
 def get_clustering_job_status(job_id: str, project_name: str) -> JobStatusResponse:
@@ -92,12 +105,23 @@ def get_clustering_job_status(job_id: str, project_name: str) -> JobStatusRespon
 
     child_id = children[0]
     state = get_flow_run_state(child_id)
-    if state != "COMPLETED":
-        return JobStatusResponse(ready=False, state=state)
+    state_str = state.value if hasattr(state, "value") else str(state)
+    if state_str != "COMPLETED":
+        return JobStatusResponse(ready=False, state=state_str)
 
     result_uri = f"{USER}/{project_name}/{child_id}"
     ready = _result_exists_in_tiled(result_uri)
-    return JobStatusResponse(ready=ready, state=state, result_uri=result_uri if ready else None)
+    return JobStatusResponse(ready=ready, state=state_str, result_uri=result_uri if ready else None)
+
+
+def get_job_logs(job_id: str) -> list[str]:
+    logs = get_flow_run_logs(job_id)
+    try:
+        for child_id in get_children_flow_run_ids(job_id):
+            logs.extend(get_flow_run_logs(child_id))
+    except Exception:
+        pass
+    return logs
 
 
 def get_mlflow_models() -> list[MlflowModelOption]:
@@ -170,13 +194,14 @@ def submit_latent_space_job(req: LatentSpaceJobRequest) -> JobSubmitResponse:
         )
 
     try:
+        _prepare_project_container(USER, req.project_name)
         current_time = datetime.now(ZoneInfo(TIMEZONE)).strftime("%Y/%m/%d %H:%M:%S")
-        job_uid = schedule_prefect_flow(
+        job_uid = str(schedule_prefect_flow(
             FLOW_NAME,
             parameters=job_params,
             flow_run_name=f"{req.job_name} {current_time}",
             tags=PREFECT_TAGS + [req.project_name, "latent-space"],
-        )
+        ))
         return JobSubmitResponse(
             job_uid=job_uid,
             message=f"Job submitted with uid {job_uid}",
@@ -230,14 +255,15 @@ def submit_clustering_job(req: ClusteringJobRequest) -> JobSubmitResponse:
         )
 
     try:
+        _prepare_project_container(USER, req.project_name)
         current_time = datetime.now(ZoneInfo(TIMEZONE)).strftime("%Y/%m/%d %H:%M:%S")
         dim_red_name = get_flow_run_name(req.dimension_reduction_job_id)
-        job_uid = schedule_prefect_flow(
+        job_uid = str(schedule_prefect_flow(
             FLOW_NAME,
             parameters=job_params,
             flow_run_name=f"{dim_red_name} {req.job_name} {current_time}",
             tags=PREFECT_TAGS + [req.project_name, "clustering"],
-        )
+        ))
         return JobSubmitResponse(
             job_uid=job_uid,
             message=f"Job submitted with uid {job_uid}",

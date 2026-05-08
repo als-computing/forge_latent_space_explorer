@@ -46,6 +46,12 @@ export async function fetchJobStatus(
   return res.json()
 }
 
+export async function fetchJobLogs(jobId: string): Promise<string[]> {
+  const res = await fetch(`/api/jobs/${encodeURIComponent(jobId)}/logs`)
+  if (!res.ok) throw new Error(`Failed to fetch logs: ${res.status}`)
+  return res.json()
+}
+
 export async function submitClusteringJob(
   req: ClusteringJobRequest,
 ): Promise<JobSubmitResponse> {
