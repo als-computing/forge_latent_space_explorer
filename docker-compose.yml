@@ -365,9 +365,10 @@ services:
       - "127.0.0.1:8080:8080"
     environment:
       # Tiled
+      DEFAULT_TILED_URI: 'http://tiled:8000'
+      DATA_TILED_KEY: '${DATA_TILED_KEY}'
       RESULTS_TILED_URI: 'http://tiled:8000'
       RESULTS_TILED_API_KEY: '${RESULTS_TILED_API_KEY}'
-      DATA_TILED_KEY: '${DATA_TILED_KEY}'
       # MLflow
       MLFLOW_TRACKING_URI: 'http://mlflow:5000'
       MLFLOW_TRACKING_USERNAME: '${MLFLOW_TRACKING_USERNAME}'
