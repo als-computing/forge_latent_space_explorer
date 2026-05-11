@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Settings, ChevronDown } from 'lucide-react'
+import Clustering from './Clustering'
 import DataTransformation from './DataTransformation'
 import DimensionReduction from './DimensionReduction'
 import FileBrowser from './FileBrowser'
@@ -18,6 +19,10 @@ interface Props {
   latentSpaceJobId: string | null
   onLatentSpaceJobSubmitted: (jobId: string) => void
   onShowFeatureVectors: () => void
+  onHideFeatureVectors: () => void
+  onClusteringJobSubmitted: (jobId: string) => void
+  onShowClusters: () => void
+  onHideClusters: () => void
 }
 
 function AccordionItem({
@@ -75,6 +80,10 @@ export default function Sidebar({
   latentSpaceJobId,
   onLatentSpaceJobSubmitted,
   onShowFeatureVectors,
+  onHideFeatureVectors,
+  onClusteringJobSubmitted,
+  onShowClusters,
+  onHideClusters,
 }: Props) {
   const [isOpen, setIsOpen] = useState(true)
 
@@ -131,9 +140,21 @@ export default function Sidebar({
               mask={mask}
               onJobSubmitted={onLatentSpaceJobSubmitted}
               onShowFeatureVectors={onShowFeatureVectors}
+              onHideFeatureVectors={onHideFeatureVectors}
             />
           </AccordionItem>
-          <AccordionItem title="Clustering" />
+          <AccordionItem title="Clustering">
+            <Clustering
+              projectName={projectName}
+              latentSpaceJobId={latentSpaceJobId}
+              logTransform={logTransform}
+              percentiles={percentiles}
+              mask={mask}
+              onJobSubmitted={onClusteringJobSubmitted}
+              onShowClusters={onShowClusters}
+              onHideClusters={onHideClusters}
+            />
+          </AccordionItem>
           <AccordionItem title="Experiment Replay" />
         </div>
       </div>

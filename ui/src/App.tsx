@@ -12,6 +12,8 @@ function App() {
   const [percentiles, setPercentiles] = useState<[number, number]>([0, 100])
   const [mask, setMask] = useState('None')
   const [latentSpaceJobId, setLatentSpaceJobId] = useState<string | null>(null)
+  const [clusteringJobId, setClusteringJobId] = useState<string | null>(null)
+  const [showClustersTrigger, setShowClustersTrigger] = useState(0)
 const [projectName, setProjectName] = useState('')
   const [showFVTrigger, setShowFVTrigger] = useState(0)
 
@@ -40,6 +42,10 @@ const [projectName, setProjectName] = useState('')
         latentSpaceJobId={latentSpaceJobId}
         onLatentSpaceJobSubmitted={setLatentSpaceJobId}
         onShowFeatureVectors={() => setShowFVTrigger(n => n + 1)}
+        onHideFeatureVectors={() => setShowFVTrigger(0)}
+        onClusteringJobSubmitted={setClusteringJobId}
+        onShowClusters={() => setShowClustersTrigger(n => n + 1)}
+        onHideClusters={() => setShowClustersTrigger(0)}
       />
       <div style={{ padding: '10px 10px 10px 520px' }}>
         <DataOverview
@@ -49,13 +55,13 @@ const [projectName, setProjectName] = useState('')
         />
         <VisualizationPanel
           latentSpaceJobId={latentSpaceJobId}
-          clusteringJobId={null}
+          clusteringJobId={clusteringJobId}
           projectName={projectName}
-          clusteringReady={false}
           dataProjectDict={dataProjectDict}
           logTransform={logTransform}
           percentiles={percentiles}
           showFVTrigger={showFVTrigger}
+          showClustersTrigger={showClustersTrigger}
         />
       </div>
     </div>

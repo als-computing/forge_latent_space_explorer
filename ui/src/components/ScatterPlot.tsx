@@ -54,7 +54,7 @@ export default function ScatterPlot({ data, onSelect, clearCount }: Props) {
   }
 
   function handleSelected(e: Plotly.PlotSelectionEvent) {
-    if (!e?.points) return
+    if (!e?.points?.length) return
     onSelect(e.points.map(p => p.pointIndex))
   }
 

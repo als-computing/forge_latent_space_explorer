@@ -9,11 +9,11 @@ interface Props {
   latentSpaceJobId: string | null
   clusteringJobId: string | null
   projectName: string
-  clusteringReady: boolean
   dataProjectDict: DataProjectDict | null
   logTransform?: boolean
   percentiles?: [number, number]
   showFVTrigger?: number
+  showClustersTrigger?: number
 }
 
 const toggleBtnStyle = (active: boolean): React.CSSProperties => ({
@@ -31,14 +31,15 @@ export default function VisualizationPanel({
   latentSpaceJobId,
   clusteringJobId,
   projectName,
-  clusteringReady,
   dataProjectDict,
   logTransform = false,
   percentiles = [0, 100],
   showFVTrigger = 0,
+  showClustersTrigger = 0,
 }: Props) {
   const [scatterData, setScatterData] = useState<FeatureVectorResponse | ClusterResponse | null>(null)
   const [heatmapResult, setHeatmapResult] = useState<HeatmapResponse | null>(null)
+  const [heatmapError, setHeatmapError] = useState<string | null>(null)
   const [displayOption, setDisplayOption] = useState<'mean' | 'std'>('mean')
   const [clearCount, setClearCount] = useState(0)
   const [selectedIndices, setSelectedIndices] = useState<number[]>([])
@@ -51,7 +52,13 @@ export default function VisualizationPanel({
 
   useEffect(() => {
     if (showFVTrigger > 0) handleShowFeatureVectors()
+    else setScatterData(null)
   }, [showFVTrigger])  // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (showClustersTrigger > 0) handleShowClusters()
+    else setScatterData(null)
+  }, [showClustersTrigger])  // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleShowClusters() {
     if (!latentSpaceJobId || !clusteringJobId || !projectName) return
@@ -62,6 +69,7 @@ export default function VisualizationPanel({
   async function handleSelect(indices: number[]) {
     setSelectedIndices(indices)
     if (!dataProjectDict || indices.length === 0) return
+    setHeatmapError(null)
     try {
       setHeatmapResult(
         await fetchHeatmap({
@@ -72,14 +80,15 @@ export default function VisualizationPanel({
           display_option: displayOption,
         }),
       )
-    } catch {
-      // silently ignore — scatter stays interactive
+    } catch (err) {
+      setHeatmapError(err instanceof Error ? err.message : 'Failed to load heatmap')
     }
   }
 
   async function handleDisplayChange(v: 'mean' | 'std') {
     setDisplayOption(v)
     if (!dataProjectDict || selectedIndices.length === 0) return
+    setHeatmapError(null)
     try {
       setHeatmapResult(
         await fetchHeatmap({
@@ -90,8 +99,8 @@ export default function VisualizationPanel({
           display_option: v,
         }),
       )
-    } catch {
-      // silently ignore
+    } catch (err) {
+      setHeatmapError(err instanceof Error ? err.message : 'Failed to load heatmap')
     }
   }
 
@@ -112,26 +121,8 @@ export default function VisualizationPanel({
         borderBottom: '1px solid rgba(0,0,0,0.175)',
         fontWeight: 500,
         flexShrink: 0,
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
       }}>
         Latent Space Analysis
-        <button
-          onClick={handleShowClusters}
-          disabled={!clusteringReady || !clusteringJobId}
-          style={{
-            padding: '2px 10px',
-            fontSize: '0.8rem',
-            cursor: clusteringReady && clusteringJobId ? 'pointer' : 'not-allowed',
-            border: '1px solid #0d6efd',
-            backgroundColor: 'white',
-            color: '#0d6efd',
-            borderRadius: 4,
-          }}
-        >
-          Show Clusters
-        </button>
       </div>
 
       {/* Card body */}
@@ -198,6 +189,9 @@ export default function VisualizationPanel({
         {/* Stats row */}
         <div style={{ flexShrink: 0, paddingTop: 4, fontSize: '0.875rem' }}>
           Number of images selected: {selectedIndices.length}
+          {heatmapError && (
+            <span style={{ marginLeft: 12, color: 'red' }}>{heatmapError}</span>
+          )}
         </div>
       </div>
     </div>

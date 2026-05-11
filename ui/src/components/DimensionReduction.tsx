@@ -18,6 +18,7 @@ interface Props {
   mask: string
   onJobSubmitted: (jobId: string) => void
   onShowFeatureVectors: () => void
+  onHideFeatureVectors: () => void
 }
 
 const resultColor: Record<string, string> = {
@@ -37,6 +38,7 @@ export default function DimensionReduction({
   mask,
   onJobSubmitted,
   onShowFeatureVectors,
+  onHideFeatureVectors,
 }: Props) {
   const [mlflowModelId, setMlflowModelId] = useState<string | null>(null)
   const [dimRedModelName, setDimRedModelName] = useState<string | null>(null)
@@ -104,6 +106,7 @@ export default function DimensionReduction({
   function handleToggleFV(checked: boolean) {
     setShowFV(checked)
     if (checked) onShowFeatureVectors()
+    else onHideFeatureVectors()
   }
 
   const statusColor = status

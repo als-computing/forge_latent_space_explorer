@@ -377,6 +377,8 @@ services:
       FLOW_NAME: '${FLOW_NAME}'
       TIMEZONE: '${TIMEZONE}'
       READ_DIR: '/tiled_storage'
+      WRITE_DIR: '/tiled_storage/writable'
+      USER: '${USER}'
     volumes:
       - ${READ_DIR}:/tiled_storage
     depends_on:
