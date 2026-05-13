@@ -1,0 +1,88 @@
+from fastapi import APIRouter, HTTPException
+
+from schemas.data import (
+    BrowseFilesystemRequest,
+    BrowseTiledRequest,
+    ClusterResponse,
+    DataProjectDictResponse,
+    DefaultTiledUriResponse,
+    FeatureVectorResponse,
+    FilesystemListResponse,
+    HeatmapRequest,
+    HeatmapResponse,
+    OverviewRequest,
+    OverviewResponse,
+    TiledListResponse,
+)
+from services import data_service
+
+router = APIRouter()
+
+
+@router.get("/filesystem", response_model=FilesystemListResponse)
+def list_filesystem(rel_path: str = ""):
+    try:
+        return data_service.list_filesystem(rel_path)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/default-tiled-uri", response_model=DefaultTiledUriResponse)
+def get_default_tiled_uri():
+    return data_service.get_default_tiled_uri()
+
+
+@router.get("/tiled", response_model=TiledListResponse)
+def list_tiled_node(base_uri: str, node_path: str = ""):
+    try:
+        return data_service.list_tiled_node(base_uri, node_path)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e))
+
+
+@router.post("/browse/filesystem", response_model=DataProjectDictResponse)
+def browse_filesystem(req: BrowseFilesystemRequest):
+    try:
+        return data_service.browse_filesystem(req.paths)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/browse/tiled", response_model=DataProjectDictResponse)
+def browse_tiled(req: BrowseTiledRequest):
+    try:
+        return data_service.browse_tiled(req.uri, req.paths)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e))
+
+
+@router.get("/feature-vectors", response_model=FeatureVectorResponse)
+def get_feature_vectors(latent_space_job_id: str, project_name: str):
+    try:
+        return data_service.get_feature_vectors(latent_space_job_id, project_name)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e))
+
+
+@router.get("/clusters", response_model=ClusterResponse)
+def get_clusters(latent_space_job_id: str, clustering_job_id: str, project_name: str):
+    try:
+        return data_service.get_clusters(latent_space_job_id, clustering_job_id, project_name)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e))
+
+
+@router.post("/overview", response_model=OverviewResponse)
+def get_overview(req: OverviewRequest):
+    try:
+        return data_service.get_overview(req)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/heatmap", response_model=HeatmapResponse)
+def compute_heatmap(req: HeatmapRequest):
+    try:
+        return data_service.compute_heatmap(req)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
