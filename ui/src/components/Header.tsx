@@ -1,7 +1,14 @@
-import { CircleHelp, Video } from 'lucide-react'
+import { CircleHelp } from 'lucide-react'
+import { NavLink } from 'react-router-dom'
 
 const GITHUB_URL = 'https://github.com/mlexchange/mlex_latent_explorer'
 const DOCS_URL = 'https://mlexchange.als.lbl.gov'
+
+const TABS = [
+  { label: 'Explore', to: '/explore' },
+  { label: 'Live', to: '/live' },
+  { label: 'Replay', to: '/replay' },
+]
 
 const iconButtonStyle: React.CSSProperties = {
   display: 'flex',
@@ -29,21 +36,44 @@ export default function Header() {
   return (
     <nav style={{
       backgroundColor: '#343a40',
-      padding: '0.5rem 1rem',
+      padding: '0 1rem',
       position: 'sticky',
       top: 0,
       zIndex: 1100,
       display: 'flex',
-      alignItems: 'center',
+      alignItems: 'stretch',
       justifyContent: 'space-between',
       width: '100%',
       boxSizing: 'border-box',
+      height: 72,
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-        <img src="/mlex.png" alt="MLEx logo" height={60} />
+        <img src="/mlex.png" alt="MLEx logo" height={56} />
         <h3 style={{ color: 'white', margin: 0, padding: 0 }}>
           MLExchange | Latent Space Explorer
         </h3>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'stretch', gap: 4, padding: '0 1rem' }}>
+        {TABS.map(({ label, to }) => (
+          <NavLink
+            key={to}
+            to={to}
+            style={({ isActive }) => ({
+              display: 'flex',
+              alignItems: 'center',
+              padding: '0 20px',
+              color: isActive ? 'white' : 'rgba(255,255,255,0.65)',
+              textDecoration: 'none',
+              fontSize: '0.95rem',
+              fontWeight: isActive ? 600 : 400,
+              borderBottom: isActive ? '3px solid white' : '3px solid transparent',
+              transition: 'color 0.15s, border-color 0.15s',
+            })}
+          >
+            {label}
+          </NavLink>
+        ))}
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center' }}>
@@ -53,9 +83,6 @@ export default function Header() {
         <a href={DOCS_URL} title="Go to Docs" style={iconButtonStyle} target="_blank" rel="noreferrer">
           <CircleHelp size={40} />
         </a>
-        <button title="Go to Live Mode" style={iconButtonStyle}>
-          <Video size={40} />
-        </button>
       </div>
     </nav>
   )

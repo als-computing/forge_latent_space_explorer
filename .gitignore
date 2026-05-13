@@ -1,4 +1,4 @@
-data**
+/data
 **.ipynb
 **.pkl
 
@@ -14,7 +14,6 @@ test.py
 
 # output dir
 results/
-data/
 .DS_Store
 models/
 mlflow_local_test/
@@ -33,7 +32,7 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
+/lib
 lib64/
 parts/
 sdist/
