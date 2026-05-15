@@ -84,3 +84,7 @@ class ClusterResponse(BaseModel):
     vectors: list[list[float]]
     n_components: int
     clusters: list[int]
+
+
+class MasksResponse(BaseModel):
+    masks: list[str]

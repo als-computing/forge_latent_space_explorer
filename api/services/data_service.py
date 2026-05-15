@@ -6,6 +6,11 @@ import traceback
 import numpy as np
 from tiled.client import from_uri as tiled_from_uri
 
+try:
+    import pyFAI.detectors as pyfai_detectors
+except ImportError:
+    pyfai_detectors = None
+
 from mlex_utils.prefect_utils.core import get_children_flow_run_ids
 from schemas.data import (
     ClusterResponse,
@@ -17,6 +22,7 @@ from schemas.data import (
     FilesystemListResponse,
     HeatmapRequest,
     HeatmapResponse,
+    MasksResponse,
     OverviewRequest,
     OverviewResponse,
     TiledChild,
@@ -216,3 +222,10 @@ def compute_heatmap(req: HeatmapRequest) -> HeatmapResponse:
 
     result = arr.mean(axis=0) if req.display_option == "mean" else arr.std(axis=0)
     return HeatmapResponse(data=result.tolist())
+
+
+def get_masks() -> MasksResponse:
+    detectors = list(pyfai_detectors.ALL_DETECTORS.keys()) if pyfai_detectors is not None else []
+    assets_dir = pathlib.Path(__file__).parent.parent.parent / "assets" / "masks"
+    tif_files = [p.name for p in assets_dir.glob("*.tif")] if assets_dir.exists() else []
+    return MasksResponse(masks=detectors + tif_files + ["None"])

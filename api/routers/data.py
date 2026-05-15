@@ -10,6 +10,7 @@ from schemas.data import (
     FilesystemListResponse,
     HeatmapRequest,
     HeatmapResponse,
+    MasksResponse,
     OverviewRequest,
     OverviewResponse,
     TiledListResponse,
@@ -17,6 +18,14 @@ from schemas.data import (
 from services import data_service
 
 router = APIRouter()
+
+
+@router.get("/masks", response_model=MasksResponse)
+def list_masks():
+    try:
+        return data_service.get_masks()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/filesystem", response_model=FilesystemListResponse)

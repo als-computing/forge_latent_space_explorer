@@ -2,8 +2,11 @@ FROM python:3.11-slim
 
 WORKDIR /app/api
 
-# Install git for mlex git dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends git && rm -rf /var/lib/apt/lists/*
+# build-essential needed to compile pyFAI (Meson/Cython build)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    git \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies from root pyproject.toml
 COPY pyproject.toml .

@@ -56,6 +56,7 @@ api = [
     "pillow",
     "numpy",
     "openpyxl",
+    "pyFAI==2025.3.0",
     "tiled[client,minimal-server]==0.2.8",
     "mlex_file_manager @ git+https://github.com/mlexchange/mlex_file_manager.git",
     "mlex_utils[all] @ git+https://github.com/mlexchange/mlex_utils.git",
