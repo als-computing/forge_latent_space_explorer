@@ -124,3 +124,10 @@ export async function fetchHeatmap(req: HeatmapRequest): Promise<HeatmapResponse
   if (!res.ok) throw new Error(`Failed to fetch heatmap: ${res.status}`)
   return res.json()
 }
+
+export async function fetchMasks(): Promise<string[]> {
+  const res = await fetch('/api/data/masks')
+  if (!res.ok) throw new Error(`Failed to fetch masks: ${res.status}`)
+  const data = await res.json() as { masks: string[] }
+  return data.masks
+}

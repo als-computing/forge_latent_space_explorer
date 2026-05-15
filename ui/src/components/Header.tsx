@@ -1,5 +1,6 @@
 import { CircleHelp } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
+import type { DataProjectDict } from '../types/data'
 
 const GITHUB_URL = 'https://github.com/mlexchange/mlex_latent_explorer'
 const DOCS_URL = 'https://mlexchange.als.lbl.gov'
@@ -32,7 +33,23 @@ function GithubIcon({ size }: { size: number }) {
   )
 }
 
-export default function Header() {
+function dataLabel(dict: DataProjectDict): string {
+  if (dict.datasets.length === 0) return ''
+  const first = dict.datasets[0].uri
+  const name = first.replace(/\/$/, '').split('/').pop() ?? first
+  if (dict.datasets.length === 1) return name
+  return `${name} +${dict.datasets.length - 1} more`
+}
+
+interface HeaderProps {
+  dataProjectDict: DataProjectDict | null
+  onOpenModal: () => void
+  jobRunning?: boolean
+}
+
+export default function Header({ dataProjectDict, onOpenModal, jobRunning }: HeaderProps) {
+  const label = dataProjectDict ? dataLabel(dataProjectDict) : null
+
   return (
     <nav style={{
       backgroundColor: '#343a40',
@@ -52,6 +69,52 @@ export default function Header() {
         <h3 style={{ color: 'white', margin: 0, padding: 0 }}>
           MLExchange | Latent Space Explorer
         </h3>
+        <style>{`
+          @keyframes lse-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+        `}</style>
+        <button
+          onClick={onOpenModal}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            padding: '6px 14px',
+            borderRadius: 6,
+            border: jobRunning
+              ? '1px solid rgba(245,158,11,0.5)'
+              : label ? '1px solid rgba(255,255,255,0.3)' : 'none',
+            background: jobRunning
+              ? 'rgba(245,158,11,0.15)'
+              : label ? 'rgba(255,255,255,0.1)' : '#0c63e4',
+            color: jobRunning ? '#f59e0b' : 'white',
+            cursor: 'pointer',
+            fontSize: '0.875rem',
+            fontWeight: 500,
+            whiteSpace: 'nowrap',
+            maxWidth: 300,
+          }}
+        >
+          {jobRunning ? (
+            <>
+              <span style={{
+                width: 8, height: 8, borderRadius: '50%',
+                background: '#f59e0b', flexShrink: 0,
+                animation: 'lse-pulse 1.2s ease-in-out infinite',
+              }} />
+              <span>dim reduction running…</span>
+            </>
+          ) : label ? (
+            <>
+              <span style={{
+                width: 8, height: 8, borderRadius: '50%',
+                background: '#7dd3a8', flexShrink: 0,
+              }} />
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</span>
+            </>
+          ) : (
+            'Start Session'
+          )}
+        </button>
       </div>
 
       <div style={{ display: 'flex', alignItems: 'stretch', gap: 4, padding: '0 1rem' }}>

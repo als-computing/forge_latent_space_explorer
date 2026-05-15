@@ -2,41 +2,47 @@ import { useEffect, useState } from 'react'
 import DataOverview from '../components/DataOverview'
 import Sidebar from '../components/Sidebar'
 import VisualizationPanel from '../components/VisualizationPanel'
+import type { SessionConfig } from '../components/SessionModal'
 import type { DataProjectDict } from '../types/data'
-import { deriveProjectName } from '../utils/projectName'
 
-function ExplorePage() {
-  const [dataProjectDict, setDataProjectDict] = useState<DataProjectDict | null>(null)
-  const [logTransform, setLogTransform] = useState(false)
-  const [percentiles, setPercentiles] = useState<[number, number]>([0, 100])
-  const [mask, setMask] = useState('None')
+interface Props {
+  dataProjectDict: DataProjectDict | null
+  sessionConfig: SessionConfig | null
+  projectName: string
+  masks: string[]
+  logTransform: boolean
+  onLogTransformChange: (v: boolean) => void
+  percentiles: [number, number]
+  onPercentilesChange: (v: [number, number]) => void
+  mask: string
+  onMaskChange: (v: string) => void
+}
+
+function ExplorePage({ dataProjectDict, sessionConfig, projectName, masks, logTransform, onLogTransformChange, percentiles, onPercentilesChange, mask, onMaskChange }: Props) {
+  const [sidebarOpen, setSidebarOpen] = useState(true)
   const [latentSpaceJobId, setLatentSpaceJobId] = useState<string | null>(null)
   const [clusteringJobId, setClusteringJobId] = useState<string | null>(null)
   const [showClustersTrigger, setShowClustersTrigger] = useState(0)
-  const [projectName, setProjectName] = useState('')
   const [showFVTrigger, setShowFVTrigger] = useState(0)
 
+  // When a session is launched with a model config, pick up the submitted job ID
   useEffect(() => {
-    if (!dataProjectDict?.datasets?.length) {
-      setProjectName('')
-      return
+    if (sessionConfig?.jobId) {
+      setLatentSpaceJobId(sessionConfig.jobId)
     }
-    const uris = dataProjectDict.datasets.map(ds => ds.uri)
-    deriveProjectName(uris).then(setProjectName)
-  }, [dataProjectDict])
+  }, [sessionConfig])
 
   return (
     <div>
       <Sidebar
-        onDataLoad={setDataProjectDict}
         dataProjectDict={dataProjectDict}
         projectName={projectName}
         logTransform={logTransform}
-        onLogTransformChange={setLogTransform}
+        onLogTransformChange={onLogTransformChange}
         percentiles={percentiles}
-        onPercentilesChange={setPercentiles}
+        onPercentilesChange={onPercentilesChange}
         mask={mask}
-        onMaskChange={setMask}
+        onMaskChange={onMaskChange}
         latentSpaceJobId={latentSpaceJobId}
         onLatentSpaceJobSubmitted={setLatentSpaceJobId}
         onShowFeatureVectors={() => setShowFVTrigger(n => n + 1)}
@@ -44,8 +50,20 @@ function ExplorePage() {
         onClusteringJobSubmitted={setClusteringJobId}
         onShowClusters={() => setShowClustersTrigger(n => n + 1)}
         onHideClusters={() => setShowClustersTrigger(0)}
+        masks={masks}
+        isOpen={sidebarOpen}
+        onToggle={() => setSidebarOpen(o => !o)}
       />
-      <div style={{ padding: '10px 10px 10px 520px' }}>
+      <div style={{
+        marginLeft: sidebarOpen ? 400 : 0,
+        transition: 'margin-left 0.3s ease',
+        height: 'calc(100vh - 72px)',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+        padding: 10,
+        boxSizing: 'border-box',
+      }}>
         <DataOverview
           dataProjectDict={dataProjectDict}
           logTransform={logTransform}

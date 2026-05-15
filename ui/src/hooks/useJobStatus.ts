@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { fetchJobStatus } from '../api/jobs'
 import type { JobStatusResponse } from '../types/jobs'
 
-const POLL_INTERVAL_MS = 10_000
+const POLL_INTERVAL_MS = 5_000
 
 export function useJobStatus(
   jobId: string | null,

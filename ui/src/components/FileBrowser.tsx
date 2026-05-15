@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from 'react'
 import {
   browseFiles,
   browseTiled,
@@ -7,6 +7,10 @@ import {
   listTiledNode,
 } from '../api/data'
 import type { DataProjectDict, FilesystemChild, TiledChild } from '../types/data'
+
+export interface FileBrowserHandle {
+  load: () => Promise<boolean>
+}
 
 // ---------- shared styles ----------
 
@@ -276,153 +280,188 @@ function TiledTree({
 
 interface Props {
   onLoad: (dict: DataProjectDict) => void
+  hideLoadButton?: boolean
+  onSelectionChange?: (label: string | null) => void
+  initialMode?: 'file' | 'tiled'
+  initialFsSelected?: string[]
+  initialTiledUri?: string
+  initialTiledSelected?: string[]
 }
 
-export default function FileBrowser({ onLoad }: Props) {
-  const [mode, setMode] = useState<'file' | 'tiled'>('file')
+const FileBrowser = forwardRef<FileBrowserHandle, Props>(
+  ({ onLoad, hideLoadButton, onSelectionChange, initialMode, initialFsSelected, initialTiledUri, initialTiledSelected }, ref) => {
+    const [mode, setMode] = useState<'file' | 'tiled'>(initialMode ?? 'file')
 
-  // filesystem
-  const [fsSelected, setFsSelected] = useState<Set<string>>(new Set())
+    // filesystem
+    const [fsSelected, setFsSelected] = useState<Set<string>>(new Set(initialFsSelected))
 
-  // tiled
-  const [tiledUri, setTiledUri] = useState('')
-  const [tiledSelected, setTiledSelected] = useState<Set<string>>(new Set())
+    // tiled
+    const [tiledUri, setTiledUri] = useState(initialTiledUri ?? '')
+    const [tiledSelected, setTiledSelected] = useState<Set<string>>(new Set(initialTiledSelected))
 
-  // shared
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+    // shared
+    const [loading, setLoading] = useState(false)
+    const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    fetchDefaultTiledUri().then((uri) => { if (uri) setTiledUri(uri) })
-  }, [])
-
-  function toggleFsSelect(relPath: string) {
-    setFsSelected((prev) => {
-      const next = new Set(prev)
-      if (next.has(relPath)) next.delete(relPath)
-      else next.add(relPath)
-      return next
-    })
-  }
-
-
-  function toggleTiledSelect(nodePath: string) {
-    setTiledSelected((prev) => {
-      const next = new Set(prev)
-      if (next.has(nodePath)) next.delete(nodePath)
-      else next.add(nodePath)
-      return next
-    })
-  }
-
-  async function handleLoad() {
-    setLoading(true)
-    setError(null)
-    try {
-      let dict: DataProjectDict
-      if (mode === 'file') {
-        const paths = fsSelected.size > 0 ? Array.from(fsSelected) : undefined
-        dict = await browseFiles(undefined, paths)
-      } else {
-        if (!tiledUri.trim()) throw new Error('Enter a Tiled server URI')
-        const paths = tiledSelected.size > 0 ? Array.from(tiledSelected) : undefined
-        dict = await browseTiled(tiledUri.trim(), paths)
+    useEffect(() => {
+      if (!initialTiledUri) {
+        fetchDefaultTiledUri().then((uri) => { if (uri) setTiledUri(uri) })
       }
-      onLoad(dict)
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load data')
-    } finally {
-      setLoading(false)
+    }, [initialTiledUri])
+
+    const canLoad =
+      mode === 'file'
+        ? fsSelected.size > 0
+        : tiledUri.trim().length > 0 && tiledSelected.size > 0
+
+    // Notify parent of selection label changes without including the callback in deps
+    const onSelectionChangeRef = useRef(onSelectionChange)
+    onSelectionChangeRef.current = onSelectionChange
+    useEffect(() => {
+      let label: string | null = null
+      if (mode === 'file' && fsSelected.size > 0) {
+        label = Array.from(fsSelected).join(', ')
+      } else if (mode === 'tiled' && tiledSelected.size > 0) {
+        label = Array.from(tiledSelected).join(', ')
+      }
+      onSelectionChangeRef.current?.(label)
+    }, [fsSelected, tiledSelected, mode])
+
+    // Use a ref for onLoad so doLoad's deps stay stable across parent re-renders
+    const onLoadRef = useRef(onLoad)
+    onLoadRef.current = onLoad
+
+    const doLoad = useCallback(async (): Promise<boolean> => {
+      setLoading(true)
+      setError(null)
+      try {
+        let dict: DataProjectDict
+        if (mode === 'file') {
+          const paths = fsSelected.size > 0 ? Array.from(fsSelected) : undefined
+          dict = await browseFiles(undefined, paths)
+        } else {
+          if (!tiledUri.trim()) throw new Error('Enter a Tiled server URI')
+          const paths = tiledSelected.size > 0 ? Array.from(tiledSelected) : undefined
+          dict = await browseTiled(tiledUri.trim(), paths)
+        }
+        onLoadRef.current(dict)
+        return true
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Failed to load data')
+        return false
+      } finally {
+        setLoading(false)
+      }
+    }, [mode, fsSelected, tiledSelected, tiledUri])
+
+    useImperativeHandle(ref, () => ({ load: doLoad }), [doLoad])
+
+    function toggleFsSelect(relPath: string) {
+      setFsSelected((prev) => {
+        const next = new Set(prev)
+        if (next.has(relPath)) next.delete(relPath)
+        else next.add(relPath)
+        return next
+      })
     }
-  }
 
-  const canLoad =
-    mode === 'file'
-      ? fsSelected.size > 0
-      : tiledUri.trim().length > 0 && tiledSelected.size > 0
+    function toggleTiledSelect(nodePath: string) {
+      setTiledSelected((prev) => {
+        const next = new Set(prev)
+        if (next.has(nodePath)) next.delete(nodePath)
+        else next.add(nodePath)
+        return next
+      })
+    }
 
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      {/* mode toggle */}
-      <div style={{ display: 'flex', gap: 8 }}>
-        {(['file', 'tiled'] as const).map((m) => (
-          <button
-            key={m}
-            onClick={() => { setMode(m); setError(null) }}
-            style={{
-              padding: '4px 14px',
-              borderRadius: 4,
-              border: '1px solid #ccc',
-              background: mode === m ? '#333' : '#fff',
-              color: mode === m ? '#fff' : '#333',
-              cursor: 'pointer',
-              fontSize: 13,
-            }}
-          >
-            {m === 'tiled' ? 'Tiled' : 'File System'}
-          </button>
-        ))}
-      </div>
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {/* mode toggle */}
+        <div style={{ display: 'flex', gap: 8 }}>
+          {(['file', 'tiled'] as const).map((m) => (
+            <button
+              key={m}
+              onClick={() => { setMode(m); setError(null) }}
+              style={{
+                padding: '4px 14px',
+                borderRadius: 4,
+                border: '1px solid #ccc',
+                background: mode === m ? '#333' : '#fff',
+                color: mode === m ? '#fff' : '#333',
+                cursor: 'pointer',
+                fontSize: 13,
+              }}
+            >
+              {m === 'tiled' ? 'Tiled' : 'File System'}
+            </button>
+          ))}
+        </div>
 
-      {mode === 'file' ? (
-        <>
-          <div>
-            <div style={{ fontSize: 12, color: '#555', marginBottom: 4 }}>
-              Select folders to load{fsSelected.size > 0 && ` (${fsSelected.size} selected)`}
-            </div>
-            <FsTree
-              root_uri={null}
-              selected={fsSelected}
-              onToggleSelect={toggleFsSelect}
-            />
-          </div>
-        </>
-      ) : (
-        <>
-          <label style={{ display: 'block', fontSize: 13 }}>
-            Tiled server URI
-            <input
-              type="text"
-              value={tiledUri}
-              onChange={(e) => { setTiledUri(e.target.value); setTiledSelected(new Set()) }}
-              placeholder="http://localhost:8000"
-              style={{ display: 'block', width: '100%', marginTop: 4, padding: '4px 6px', fontSize: 13, boxSizing: 'border-box' }}
-            />
-          </label>
-
-          {tiledUri.trim() && (
+        {mode === 'file' ? (
+          <>
             <div>
               <div style={{ fontSize: 12, color: '#555', marginBottom: 4 }}>
-                Select nodes to load{tiledSelected.size > 0 && ` (${tiledSelected.size} selected)`}
+                Select folders to load{fsSelected.size > 0 && ` (${fsSelected.size} selected)`}
               </div>
-              <TiledTree
-                baseUri={tiledUri.trim()}
-                selected={tiledSelected}
-                onToggleSelect={toggleTiledSelect}
+              <FsTree
+                root_uri={null}
+                selected={fsSelected}
+                onToggleSelect={toggleFsSelect}
               />
             </div>
-          )}
-        </>
-      )}
+          </>
+        ) : (
+          <>
+            <label style={{ display: 'block', fontSize: 13 }}>
+              Tiled server URI
+              <input
+                type="text"
+                value={tiledUri}
+                onChange={(e) => { setTiledUri(e.target.value); setTiledSelected(new Set()) }}
+                placeholder="http://localhost:8000"
+                style={{ display: 'block', width: '100%', marginTop: 4, padding: '4px 6px', fontSize: 13, boxSizing: 'border-box' }}
+              />
+            </label>
 
-      {error && <div style={{ fontSize: 12, color: '#c00' }}>{error}</div>}
+            {tiledUri.trim() && (
+              <div>
+                <div style={{ fontSize: 12, color: '#555', marginBottom: 4 }}>
+                  Select nodes to load{tiledSelected.size > 0 && ` (${tiledSelected.size} selected)`}
+                </div>
+                <TiledTree
+                  baseUri={tiledUri.trim()}
+                  selected={tiledSelected}
+                  onToggleSelect={toggleTiledSelect}
+                />
+              </div>
+            )}
+          </>
+        )}
 
-      <button
-        onClick={handleLoad}
-        disabled={loading || !canLoad}
-        style={{
-          padding: '6px 16px',
-          borderRadius: 4,
-          border: 'none',
-          background: canLoad ? '#0c63e4' : '#ccc',
-          color: '#fff',
-          cursor: canLoad ? 'pointer' : 'default',
-          fontSize: 13,
-          alignSelf: 'flex-start',
-        }}
-      >
-        {loading ? 'Loading…' : 'Load'}
-      </button>
-    </div>
-  )
-}
+        {error && <div style={{ fontSize: 12, color: '#c00' }}>{error}</div>}
+
+        {!hideLoadButton && (
+          <button
+            onClick={doLoad}
+            disabled={loading || !canLoad}
+            style={{
+              padding: '6px 16px',
+              borderRadius: 4,
+              border: 'none',
+              background: canLoad ? '#0c63e4' : '#ccc',
+              color: '#fff',
+              cursor: canLoad ? 'pointer' : 'default',
+              fontSize: 13,
+              alignSelf: 'flex-start',
+            }}
+          >
+            {loading ? 'Loading…' : 'Load'}
+          </button>
+        )}
+      </div>
+    )
+  }
+)
+
+FileBrowser.displayName = 'FileBrowser'
+export default FileBrowser

@@ -109,7 +109,8 @@ export default function VisualizationPanel({
       border: '1px solid rgba(0,0,0,0.175)',
       borderRadius: '0.375rem',
       backgroundColor: 'white',
-      height: '64vh',
+      flex: 1,
+      minHeight: 0,
       display: 'flex',
       flexDirection: 'column',
       marginTop: 10,
@@ -177,7 +178,7 @@ export default function VisualizationPanel({
         </div>
 
         {/* Plots row */}
-        <div style={{ display: 'flex', flex: 1, minHeight: 0, height: '46vh' }}>
+        <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <ScatterPlot data={scatterData} onSelect={handleSelect} clearCount={clearCount} />
           </div>

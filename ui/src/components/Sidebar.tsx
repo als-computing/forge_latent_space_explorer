@@ -1,13 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Settings, ChevronDown } from 'lucide-react'
 import Clustering from './Clustering'
 import DataTransformation from './DataTransformation'
 import DimensionReduction from './DimensionReduction'
-import FileBrowser from './FileBrowser'
 import type { DataProjectDict } from '../types/data'
 
 interface Props {
-  onDataLoad: (dict: DataProjectDict) => void
   dataProjectDict: DataProjectDict | null
   projectName: string
   logTransform: boolean
@@ -23,21 +21,32 @@ interface Props {
   onClusteringJobSubmitted: (jobId: string) => void
   onShowClusters: () => void
   onHideClusters: () => void
+  masks: string[]
+  isOpen: boolean
+  onToggle: () => void
 }
 
 function AccordionItem({
   title,
+  titleColor,
   defaultOpen,
+  forceOpen,
   children,
 }: {
   title: string
+  titleColor?: string
   defaultOpen?: boolean
+  forceOpen?: boolean
   children?: React.ReactNode
 }) {
   const [open, setOpen] = useState(defaultOpen ?? false)
 
+  useEffect(() => {
+    if (forceOpen) setOpen(true)
+  }, [forceOpen])
+
   return (
-    <div style={{ borderBottom: '1px solid #dee2e6' }}>
+    <div style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
       <button
         onClick={() => setOpen(o => !o)}
         style={{
@@ -45,24 +54,34 @@ function AccordionItem({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '12px 16px',
-          background: open ? '#e7f1ff' : 'none',
+          padding: '9px 14px',
+          background: 'none',
           border: 'none',
           cursor: 'pointer',
-          fontSize: 'large',
-          fontWeight: 'bold',
-          textAlign: 'left',
-          color: open ? '#0c63e4' : '#212529',
         }}
       >
-        {title}
+        <span style={{
+          fontFamily: "'IBM Plex Mono', monospace",
+          fontSize: 12,
+          fontWeight: 500,
+          letterSpacing: '.12em',
+          textTransform: 'uppercase',
+          color: titleColor ?? 'rgba(255,255,255,0.65)',
+        }}>
+          {title}
+        </span>
         <ChevronDown
-          size={18}
-          style={{ transform: open ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}
+          size={10}
+          style={{
+            color: 'rgba(255,255,255,0.35)',
+            transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
+            transition: 'transform 0.2s',
+            flexShrink: 0,
+          }}
         />
       </button>
       {open && (
-        <div style={{ padding: '8px 16px 16px' }}>
+        <div style={{ padding: '8px 14px 12px' }}>
           {children}
         </div>
       )}
@@ -71,7 +90,6 @@ function AccordionItem({
 }
 
 export default function Sidebar({
-  onDataLoad,
   dataProjectDict,
   projectName,
   logTransform, onLogTransformChange,
@@ -84,8 +102,10 @@ export default function Sidebar({
   onClusteringJobSubmitted,
   onShowClusters,
   onHideClusters,
+  masks,
+  isOpen,
+  onToggle,
 }: Props) {
-  const [isOpen, setIsOpen] = useState(true)
 
   return (
     <>
@@ -94,11 +114,12 @@ export default function Sidebar({
         style={{
           position: 'fixed',
           top: 80,
-          left: isOpen ? 0 : -500,
-          width: 500,
+          left: isOpen ? 0 : -400,
+          width: 400,
           height: 'calc(100vh - 80px)',
-          backgroundColor: 'white',
-          boxShadow: '2px 0 8px rgba(0,0,0,0.15)',
+          backgroundColor: '#343a40',
+          borderRight: '1px solid rgba(255,255,255,0.1)',
+          boxShadow: '2px 0 12px rgba(0,0,0,0.4)',
           zIndex: 1050,
           transition: 'left 0.3s ease',
           display: 'flex',
@@ -106,20 +127,7 @@ export default function Sidebar({
           overflowY: 'auto',
         }}
       >
-        <div style={{
-          padding: '16px',
-          borderBottom: '1px solid #dee2e6',
-          fontWeight: 'bold',
-          fontSize: '1.25rem',
-          color: '#212529',
-        }}>
-          Controls
-        </div>
-
         <div style={{ flex: 1 }}>
-          <AccordionItem title="Data selection" defaultOpen>
-            <FileBrowser onLoad={onDataLoad} />
-          </AccordionItem>
           <AccordionItem title="Data transformation">
             <DataTransformation
               logTransform={logTransform}
@@ -128,9 +136,10 @@ export default function Sidebar({
               onPercentilesChange={onPercentilesChange}
               mask={mask}
               onMaskChange={onMaskChange}
+              masks={masks}
             />
           </AccordionItem>
-          <AccordionItem title="Dimension Reduction">
+          <AccordionItem title="Dimension Reduction" forceOpen={!!latentSpaceJobId}>
             <DimensionReduction
               dataProjectDict={dataProjectDict}
               projectName={projectName}
@@ -155,7 +164,6 @@ export default function Sidebar({
               onHideClusters={onHideClusters}
             />
           </AccordionItem>
-          <AccordionItem title="Experiment Replay" />
         </div>
       </div>
 
@@ -170,7 +178,7 @@ export default function Sidebar({
         }}
       >
         <button
-          onClick={() => setIsOpen(o => !o)}
+          onClick={onToggle}
           title="Toggle sidebar"
           style={{
             width: 36,
