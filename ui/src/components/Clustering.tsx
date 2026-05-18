@@ -1,11 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { fetchClusters, fetchDataProjectDictFromClusteringJob } from '../api/data'
+import { fetchModels } from '../api/models'
 import { submitClusteringJob } from '../api/jobs'
 import { useJobStatus } from '../hooks/useJobStatus'
+import type { DataProjectDict } from '../types/data'
 import type { JobSubmitResponse } from '../types/jobs'
-import type { ParameterValues } from '../types/models'
+import type { GuiParameter, Model, ParameterValues } from '../types/models'
 import JobRunSelect from './JobRunSelect'
 import LogsModal from './LogsModal'
-import ModelSelect from './ModelSelect'
 
 interface Props {
   projectName: string
@@ -16,15 +18,92 @@ interface Props {
   onJobSubmitted: (jobId: string) => void
   onShowClusters: () => void
   onHideClusters: () => void
+  onDataProjectDictChange?: (dict: DataProjectDict) => void
+  clearCount?: number
 }
 
-const resultColor: Record<string, string> = {
-  success: 'green',
-  dev: '#6366f1',
-  error: 'red',
+const C = {
+  bg3: 'rgba(0,0,0,0.2)',
+  accent: '#4f8ef7',
+  text: 'white',
+  textMuted: 'rgba(255,255,255,0.65)',
+  textDim: 'rgba(255,255,255,0.4)',
+  border: 'rgba(255,255,255,0.15)',
+  mono: "'IBM Plex Mono', monospace",
 }
 
-const divider = <hr style={{ border: 'none', borderTop: '1px solid #dee2e6', margin: '16px 0' }} />
+// Must match ScatterPlot.tsx COLORS order so legend colors align with the plot
+const CLUSTER_COLORS = [
+  '#636efa', '#ef553b', '#00cc96', '#ab63fa', '#ffa15a',
+  '#19d3f3', '#ff6692', '#b6e880', '#ff97ff', '#fecb52',
+]
+
+const divider = <hr style={{ border: 'none', borderTop: `1px solid ${C.border}`, margin: '14px 0' }} />
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{
+      fontFamily: C.mono,
+      fontSize: 10,
+      fontWeight: 600,
+      letterSpacing: '.1em',
+      textTransform: 'uppercase' as const,
+      color: C.textDim,
+      marginBottom: 8,
+    }}>
+      {children}
+    </div>
+  )
+}
+
+function ParamInput({ param, value, onChange }: {
+  param: GuiParameter
+  value: number
+  onChange: (key: string, value: number) => void
+}) {
+  const base: React.CSSProperties = {
+    width: '100%',
+    background: C.bg3,
+    border: `1px solid ${C.border}`,
+    borderRadius: 4,
+    padding: '5px 8px',
+    fontFamily: C.mono,
+    fontSize: 12,
+    color: C.text,
+    outline: 'none',
+    boxSizing: 'border-box',
+  }
+  if (param.type === 'dropdown') {
+    return (
+      <select value={value} onChange={e => onChange(param.param_key, Number(e.target.value))} style={base}>
+        {param.options?.map(opt => (
+          <option key={opt.value} value={opt.value}>{opt.label}</option>
+        ))}
+      </select>
+    )
+  }
+  if (param.type === 'slider') {
+    return (
+      <div>
+        <input
+          type="range" min={param.min} max={param.max} step={param.step} value={value}
+          onChange={e => onChange(param.param_key, Number(e.target.value))}
+          style={{ width: '100%', accentColor: C.accent }}
+        />
+        <span style={{ fontFamily: C.mono, fontSize: 11, color: C.textMuted }}>{value}</span>
+      </div>
+    )
+  }
+  return (
+    <input
+      type="number" value={value}
+      step={param.type === 'float' ? 0.01 : 1}
+      min={param.min} max={param.max}
+      onChange={e => onChange(param.param_key, Number(e.target.value))}
+      style={base}
+    />
+  )
+}
 
 export default function Clustering({
   projectName,
@@ -35,55 +114,132 @@ export default function Clustering({
   onJobSubmitted,
   onShowClusters,
   onHideClusters,
+  onDataProjectDictChange,
+  clearCount = 0,
 }: Props) {
-  const [clusteringModelName, setClusteringModelName] = useState<string | null>(null)
-  const [clusteringParams, setClusteringParams] = useState<ParameterValues>({})
+  const [models, setModels] = useState<Model[]>([])
+  const [selectedModel, setSelectedModel] = useState<Model | null>(null)
+  const [modelParams, setModelParams] = useState<ParameterValues>({})
+
+  // Local copy of the dim reduction job to use — kept in sync with the prop but
+  // also updated when the user picks one directly from the Clustering panel.
+  const [selectedLatentJobId, setSelectedLatentJobId] = useState<string | null>(latentSpaceJobId)
+
   const [jobName, setJobName] = useState('clustering-job')
   const [submitting, setSubmitting] = useState(false)
   const [result, setResult] = useState<JobSubmitResponse | null>(null)
   const [activeJobId, setActiveJobId] = useState<string | null>(null)
   const [showLogs, setShowLogs] = useState(false)
   const [showClusters, setShowClusters] = useState(false)
+  const [clusterStats, setClusterStats] = useState<{ id: number; count: number }[] | null>(null)
 
   const status = useJobStatus(activeJobId, 'clustering', projectName)
+  const autoShowRef = useRef(false)
+
+  // When the parent updates (e.g. user runs/selects a dim reduction job in that
+  // panel), mirror it here so the default is always the most recent one.
+  useEffect(() => {
+    setSelectedLatentJobId(latentSpaceJobId)
+  }, [latentSpaceJobId])
 
   useEffect(() => {
-    if (!status?.ready) setShowClusters(false)
+    fetchModels('clustering')
+      .then(data => {
+        setModels(data)
+        if (data.length > 0) {
+          setSelectedModel(data[0])
+          setModelParams(Object.fromEntries(data[0].gui_parameters.map(p => [p.param_key, p.value])))
+        }
+      })
+      .catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    if (status?.ready && autoShowRef.current) {
+      autoShowRef.current = false
+      setShowClusters(true)
+      onShowClusters()
+    } else if (!status?.ready) {
+      setShowClusters(false)
+      setClusterStats(null)
+    }
   }, [status?.ready])  // eslint-disable-line react-hooks/exhaustive-deps
 
-  function handleSelectPastJob(jobId: string | null) {
+  useEffect(() => {
+    if (clearCount > 0) {
+      setActiveJobId(null)
+      setResult(null)
+      setShowClusters(false)
+      setClusterStats(null)
+    }
+  }, [clearCount])
+
+  // Fetch cluster counts for the legend whenever a completed job is selected
+  useEffect(() => {
+    if (!status?.ready || !activeJobId) {
+      setClusterStats(null)
+      return
+    }
+    fetchClusters(activeJobId, projectName, selectedLatentJobId ?? "")
+      .then(data => {
+        const counts = new Map<number, number>()
+        data.clusters.forEach(id => counts.set(id, (counts.get(id) ?? 0) + 1))
+        setClusterStats(
+          [...counts.entries()].sort(([a], [b]) => a - b).map(([id, count]) => ({ id, count }))
+        )
+      })
+      .catch(() => setClusterStats(null))
+  }, [status?.ready, activeJobId, selectedLatentJobId, projectName])  // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function handleSelectPastJob(jobId: string | null) {
     if (!jobId) return
     setActiveJobId(jobId)
     onJobSubmitted(jobId)
     setResult(null)
     setShowClusters(false)
+    setClusterStats(null)
+    if (onDataProjectDictChange) {
+      try {
+        const dict = await fetchDataProjectDictFromClusteringJob(jobId)
+        onDataProjectDictChange(dict)
+      } catch {
+        // keep existing dataProjectDict if fetch fails
+      }
+    }
   }
 
-  function handleParamsChange(modelName: string, params: ParameterValues) {
-    setClusteringModelName(modelName)
-    setClusteringParams(params)
+  function handleModelChange(name: string) {
+    const model = models.find(m => m.model_name === name) ?? null
+    setSelectedModel(model)
+    if (model) setModelParams(Object.fromEntries(model.gui_parameters.map(p => [p.param_key, p.value])))
   }
 
-  const canSubmit = !!latentSpaceJobId && !!clusteringModelName && !!projectName && !submitting
+  function handleParamChange(key: string, value: number) {
+    setModelParams(prev => ({ ...prev, [key]: value }))
+  }
+
+  const canSubmit = !!selectedLatentJobId && !!selectedModel && !submitting
 
   async function handleSubmit() {
-    if (!latentSpaceJobId || !clusteringModelName) return
+    if (!selectedLatentJobId || !selectedModel) return
     setSubmitting(true)
     setResult(null)
     setShowClusters(false)
+    setClusterStats(null)
     try {
       const res = await submitClusteringJob({
-        model_name: clusteringModelName,
-        model_parameters: clusteringParams,
+        model_name: selectedModel.model_name,
+        model_parameters: modelParams,
         log_transform: logTransform,
         percentiles,
         mask: mask !== 'None' ? mask : null,
         job_name: jobName,
         project_name: projectName,
-        dimension_reduction_job_id: latentSpaceJobId,
+        dimension_reduction_job_id: selectedLatentJobId,
       })
       setResult(res)
       if (res.job_uid) {
+        autoShowRef.current = true
         setActiveJobId(res.job_uid)
         onJobSubmitted(res.job_uid)
       }
@@ -100,52 +256,100 @@ export default function Clustering({
     else onHideClusters()
   }
 
-  const statusColor = status
-    ? status.ready ? 'green' : status.state === 'FAILED' || status.state === 'CRASHED' ? 'red' : '#f59e0b'
-    : '#ccc'
-  const statusLabel = status
-    ? status.ready ? 'Results ready' : status.state ? `State: ${status.state}` : 'Checking…'
-    : null
+  const isReady = !!status?.ready
+  const isFailed = status?.state === 'FAILED' || status?.state === 'CRASHED'
+  const isRunning = !!(activeJobId && status && !status.ready && !isFailed)
+
+  const labelStyle: React.CSSProperties = {
+    fontFamily: C.mono,
+    fontSize: 11,
+    color: C.textDim,
+    marginBottom: 4,
+    display: 'block',
+  }
+
+  const inputStyle: React.CSSProperties = {
+    width: '100%',
+    background: C.bg3,
+    border: `1px solid ${C.border}`,
+    borderRadius: 4,
+    padding: '5px 8px',
+    fontFamily: C.mono,
+    fontSize: 12,
+    color: C.text,
+    outline: 'none',
+    boxSizing: 'border-box',
+  }
+
+  const statusColor = isFailed ? '#ef4444' : isReady ? '#22c55e' : '#f59e0b'
 
   return (
-    <div>
-      {/* ── New job submission ── */}
-      <ModelSelect
-        label="Clustering Model"
-        modelType="clustering"
-        onParamsChange={handleParamsChange}
-      />
+    <div style={{ display: 'flex', flexDirection: 'column' }}>
+      <style>{`@keyframes cl-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }`}</style>
 
-      <div style={{ marginBottom: 8 }}>
-        <span style={{ fontWeight: 600 }}>Project Name</span>
-        <div style={{ marginTop: 4, padding: 6, background: '#f8f9fa', borderRadius: 4, fontSize: 13, color: projectName ? '#212529' : '#999' }}>
-          {projectName || 'Load data to generate'}
+      {/* ── Algorithm ── */}
+      <SectionLabel>Algorithm</SectionLabel>
+      {models.length > 0 && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
+          <div>
+            <span style={labelStyle}>Model</span>
+            <div style={{ position: 'relative' }}>
+              <select
+                value={selectedModel?.model_name ?? ''}
+                onChange={e => handleModelChange(e.target.value)}
+                style={{ ...inputStyle, appearance: 'none' } as React.CSSProperties}
+              >
+                {models.map(m => (
+                  <option key={m.model_name} value={m.model_name}>{m.model_name}</option>
+                ))}
+              </select>
+              <span style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', color: C.textDim, fontSize: 10, pointerEvents: 'none' }}>▾</span>
+            </div>
+          </div>
+          {selectedModel?.gui_parameters.map(param => (
+            <div key={param.param_key}>
+              <span style={labelStyle}>{param.title}</span>
+              <ParamInput param={param} value={modelParams[param.param_key] ?? param.value} onChange={handleParamChange} />
+            </div>
+          ))}
         </div>
+      )}
+
+      {/* ── Dim reduction job to cluster ── */}
+      <div style={{ marginBottom: 14 }}>
+        <SectionLabel>Dimension Reduction Job</SectionLabel>
+        <JobRunSelect
+          label=""
+          tags={['latent-space-explorer', 'latent-space']}
+          value={selectedLatentJobId}
+          onChange={setSelectedLatentJobId}
+        />
       </div>
 
-      <label style={{ display: 'block', marginBottom: 12 }}>
-        Job Name
+      {/* ── Job name ── */}
+      <div style={{ marginBottom: 12 }}>
+        <span style={labelStyle}>Job Name</span>
         <input
           type="text"
           value={jobName}
-          onChange={(e) => setJobName(e.target.value)}
-          style={{ display: 'block', width: '100%', marginTop: 4, padding: 6, boxSizing: 'border-box' }}
+          onChange={e => setJobName(e.target.value)}
+          style={inputStyle}
         />
-      </label>
+      </div>
 
-      <button
-        onClick={handleSubmit}
-        disabled={!canSubmit}
-        style={{ width: '100%', padding: '8px 0', marginBottom: 8, cursor: canSubmit ? 'pointer' : 'not-allowed' }}
-      >
-        {submitting ? 'Submitting…' : 'Run Clustering'}
-      </button>
+      {/* ── Run button (outlined / secondary style) ── */}
+      <RunButton canSubmit={canSubmit} submitting={submitting} onClick={handleSubmit} />
 
-      {!latentSpaceJobId && (
-        <div style={{ fontSize: 12, color: '#999', marginBottom: 4 }}>Run Dimension Reduction first.</div>
+      {!selectedLatentJobId && (
+        <div style={{ fontFamily: C.mono, fontSize: 11, color: C.textDim, marginTop: 6 }}>
+          Select a Dimension Reduction job above.
+        </div>
       )}
       {result && (
-        <div style={{ fontSize: 13, color: resultColor[result.status] ?? '#333', marginBottom: 8 }}>
+        <div style={{
+          fontFamily: C.mono, fontSize: 11, marginTop: 6,
+          color: result.status === 'error' ? '#ef4444' : result.status === 'success' ? '#22c55e' : C.textMuted,
+        }}>
           {result.message}
         </div>
       )}
@@ -165,37 +369,153 @@ export default function Clustering({
         <button
           onClick={() => setShowLogs(true)}
           disabled={!activeJobId}
-          style={{ marginBottom: 12, padding: '6px 12px', whiteSpace: 'nowrap', cursor: activeJobId ? 'pointer' : 'not-allowed' }}
+          style={{
+            marginBottom: 12,
+            padding: '5px 10px',
+            background: activeJobId ? 'rgba(255,255,255,0.08)' : 'transparent',
+            border: `1px solid ${activeJobId ? C.border : 'rgba(255,255,255,0.08)'}`,
+            borderRadius: 4,
+            color: activeJobId ? C.textMuted : C.textDim,
+            fontFamily: C.mono,
+            fontSize: 11,
+            cursor: activeJobId ? 'pointer' : 'default',
+            whiteSpace: 'nowrap',
+          }}
         >
           View Logs
         </button>
       </div>
 
-      {/* Status indicator */}
+      {/* ── Status block ── */}
       {activeJobId && status && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: statusColor, marginBottom: 12 }}>
-          <span style={{ width: 8, height: 8, borderRadius: '50%', background: statusColor, display: 'inline-block' }} />
-          {statusLabel}
+        <div style={{
+          background: `${statusColor}1e`,
+          border: `1px solid ${statusColor}4d`,
+          borderRadius: 5,
+          padding: '8px 10px',
+          marginBottom: 10,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+        }}>
+          <span style={{
+            width: 7, height: 7, borderRadius: '50%', background: statusColor,
+            flexShrink: 0, display: 'inline-block',
+            ...(isRunning ? { animation: 'cl-pulse 1.2s ease-in-out infinite' } : {}),
+          }} />
+          <span style={{ fontFamily: C.mono, fontSize: 10, fontWeight: 600, letterSpacing: '.06em', color: statusColor }}>
+            {isFailed ? 'FAILED' : isReady ? 'COMPLETED' : 'RUNNING'}
+          </span>
+          <span style={{ fontFamily: C.mono, fontSize: 9, color: C.textDim, marginLeft: 'auto' }}>
+            {activeJobId.slice(0, 8)}…
+          </span>
         </div>
       )}
 
-      {/* Show Clusters toggle */}
-      <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: status?.ready ? 'pointer' : 'not-allowed', opacity: status?.ready ? 1 : 0.45 }}>
-        <input
-          type="checkbox"
-          role="switch"
-          checked={showClusters}
-          disabled={!status?.ready}
-          onChange={e => handleToggleClusters(e.target.checked)}
-          style={{ width: 16, height: 16 }}
-        />
-        <span style={{ fontSize: 14 }}>Show Clusters</span>
-      </label>
+      {/* ── Cluster legend ── */}
+      {clusterStats && clusterStats.length > 0 && (
+        <div style={{ marginBottom: 12 }}>
+          <SectionLabel>Clusters</SectionLabel>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {clusterStats.map(({ id, count }, i) => {
+              const isNoise = id === -1
+              return (
+                <div
+                  key={id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 7,
+                    padding: '3px 5px',
+                    borderRadius: 4,
+                    opacity: isNoise ? 0.5 : 1,
+                    cursor: 'default',
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.04)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                >
+                  <div style={{
+                    width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
+                    background: CLUSTER_COLORS[i % CLUSTER_COLORS.length],
+                  }} />
+                  <span style={{ fontFamily: C.mono, fontSize: 11, color: C.text, flex: 1 }}>
+                    {isNoise ? 'Noise' : `Cluster ${id}`}
+                  </span>
+                  <span style={{ fontFamily: C.mono, fontSize: 10, color: C.textMuted }}>{count}</span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
-      {/* Logs modal */}
+      {/* ── Show Clusters toggle ── */}
+      <div
+        onClick={() => { if (isReady) handleToggleClusters(!showClusters) }}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginTop: 4,
+          opacity: isReady ? 1 : 0.4,
+          cursor: isReady ? 'pointer' : 'default',
+        }}
+      >
+        <span style={{ fontFamily: C.mono, fontSize: 12, color: C.textMuted }}>Show Clusters</span>
+        <div style={{
+          width: 28, height: 16,
+          background: showClusters ? C.accent : 'rgba(0,0,0,0.2)',
+          border: `1px solid ${showClusters ? C.accent : C.border}`,
+          borderRadius: 8,
+          position: 'relative',
+          transition: 'background 0.2s, border-color 0.2s',
+          flexShrink: 0,
+        }}>
+          <div style={{
+            position: 'absolute', top: 2, left: showClusters ? 14 : 2,
+            width: 10, height: 10, borderRadius: '50%', background: '#fff',
+            transition: 'left 0.2s',
+          }} />
+        </div>
+      </div>
+
       {showLogs && activeJobId && (
         <LogsModal jobId={activeJobId} onClose={() => setShowLogs(false)} />
       )}
     </div>
+  )
+}
+
+function RunButton({ canSubmit, submitting, onClick }: {
+  canSubmit: boolean
+  submitting: boolean
+  onClick: () => void
+}) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <button
+      onClick={onClick}
+      disabled={!canSubmit}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        width: '100%',
+        padding: '8px 0',
+        marginBottom: 8,
+        background: 'transparent',
+        border: `1px solid ${canSubmit && hovered ? C.accent : canSubmit ? C.border : 'rgba(255,255,255,0.08)'}`,
+        borderRadius: 5,
+        color: canSubmit && hovered ? C.accent : canSubmit ? C.textMuted : C.textDim,
+        fontFamily: C.mono,
+        fontSize: 11,
+        fontWeight: 500,
+        letterSpacing: '.08em',
+        textTransform: 'uppercase',
+        cursor: canSubmit ? 'pointer' : 'default',
+        transition: 'border-color 0.15s, color 0.15s',
+      }}
+    >
+      {submitting ? 'Submitting…' : '▶ Run Clustering'}
+    </button>
   )
 }

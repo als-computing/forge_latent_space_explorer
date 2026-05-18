@@ -1,3 +1,5 @@
+import asyncio
+import json
 import logging
 import os
 import pathlib
@@ -11,7 +13,7 @@ try:
 except ImportError:
     pyfai_detectors = None
 
-from mlex_utils.prefect_utils.core import get_children_flow_run_ids
+from mlex_utils.prefect_utils.core import _read_flow_run, get_children_flow_run_ids, get_flow_run_parameters, get_flow_run_parent_id
 from schemas.data import (
     ClusterResponse,
     DataProjectDictResponse,
@@ -37,6 +39,31 @@ DATA_TILED_KEY = os.getenv("DATA_TILED_KEY", "")
 RESULTS_TILED_URI = os.getenv("RESULTS_TILED_URI", "")
 RESULTS_TILED_API_KEY = os.getenv("RESULTS_TILED_API_KEY", "")
 USER = os.getenv("USER", "")
+
+# Tags that are part of the system, not the user-supplied project name
+_SYSTEM_TAGS = (
+    set(json.loads(os.getenv("PREFECT_TAGS", '["latent-space-explorer"]')))
+    | {"latent-space", "clustering"}
+)
+
+
+def _resolve_project_name(job_id: str, project_name: str) -> str:
+    """Return project_name as-is if non-empty; otherwise read it from Prefect flow run tags."""
+    if project_name:
+        return project_name
+    flow_run = asyncio.run(_read_flow_run(job_id))
+    candidates = [t for t in (flow_run.tags or []) if t not in _SYSTEM_TAGS]
+    if not candidates:
+        raise ValueError(f"Cannot determine project_name from flow run {job_id}: no non-system tags found")
+    return candidates[0]
+
+
+def _fv_uri_from_clustering_job(clustering_job_id: str) -> str:
+    """Return the feature-vectors Tiled path stored in the clustering job's Prefect parameters."""
+    params = get_flow_run_parameters(clustering_job_id)
+    data_uris = params["params_list"][0]["params"]["io_parameters"]["data_uris"]
+    return data_uris[0].lstrip("/")
+
 
 IMAGE_EXTENSIONS = {".tif", ".tiff", ".png", ".jpg", ".jpeg", ".npy", ".npz", ".h5", ".hdf5"}
 
@@ -142,7 +169,8 @@ def _navigate(client, uri: str):
     return client
 
 
-def get_feature_vectors(latent_space_job_id: str, project_name: str) -> FeatureVectorResponse:
+def get_feature_vectors(latent_space_job_id: str, project_name: str = "") -> FeatureVectorResponse:
+    project_name = _resolve_project_name(latent_space_job_id, project_name)
     children = get_children_flow_run_ids(latent_space_job_id)
     child_id = children[1]
     result_uri = f"{USER}/{project_name}/{child_id}"
@@ -155,23 +183,26 @@ def get_feature_vectors(latent_space_job_id: str, project_name: str) -> FeatureV
 
 
 def get_clusters(
-    latent_space_job_id: str,
     clustering_job_id: str,
-    project_name: str,
+    project_name: str = "",
+    latent_space_job_id: str = "",
 ) -> ClusterResponse:
-    dim_red_children = get_children_flow_run_ids(latent_space_job_id)
-    dim_red_child_id = dim_red_children[1]
+    project_name = _resolve_project_name(clustering_job_id, project_name)
+
+    if latent_space_job_id:
+        dim_red_children = get_children_flow_run_ids(latent_space_job_id)
+        fv_uri = f"{USER}/{project_name}/{dim_red_children[1]}"
+    else:
+        fv_uri = _fv_uri_from_clustering_job(clustering_job_id)
 
     cl_children = get_children_flow_run_ids(clustering_job_id)
     cl_child_id = cl_children[0]
 
-    results = _results_tiled_client()
-    fv_node = _navigate(results, f"{USER}/{project_name}/{dim_red_child_id}")
+    fv_node = _navigate(_results_tiled_client(), fv_uri)
     vectors = fv_node.read().to_numpy()
     n_components = int(fv_node.metadata["model_parameters"]["n_components"])
 
-    results2 = _results_tiled_client()
-    cl_node = _navigate(results2, f"{USER}/{project_name}/{cl_child_id}")
+    cl_node = _navigate(_results_tiled_client(), f"{USER}/{project_name}/{cl_child_id}")
     clusters = cl_node.read()["cluster_label"].tolist()
 
     return ClusterResponse(vectors=vectors.tolist(), n_components=n_components, clusters=clusters)
@@ -202,6 +233,28 @@ def get_overview(req: OverviewRequest) -> OverviewResponse:
         percentiles=req.percentiles,
     )
     return OverviewResponse(images=imgs, total=total)
+
+
+def get_data_project_dict_from_job(job_id: str) -> DataProjectDictResponse:
+    params = get_flow_run_parameters(job_id)
+    io = params["params_list"][0]["params"]["io_parameters"]
+    data_type: str = io["data_type"]
+    root_uri: str = io["root_uri"]
+    data_uris: list[str] = io["data_uris"]
+    if data_type == "file":
+        rel_paths = [os.path.relpath(uri, READ_DIR) for uri in data_uris]
+        return browse_filesystem(rel_paths)
+    else:
+        return browse_tiled(root_uri, data_uris)
+
+
+def get_data_project_dict_from_clustering_job(clustering_job_id: str) -> DataProjectDictResponse:
+    params = get_flow_run_parameters(clustering_job_id)
+    fv_uri = params["params_list"][0]["params"]["io_parameters"]["data_uris"][0]
+    # fv_uri format: "/{USER}/{project_name}/{dim_red_child_id}"
+    dim_red_child_id = fv_uri.strip("/").split("/")[2]
+    dim_red_parent_id = str(get_flow_run_parent_id(dim_red_child_id))
+    return get_data_project_dict_from_job(dim_red_parent_id)
 
 
 def compute_heatmap(req: HeatmapRequest) -> HeatmapResponse:

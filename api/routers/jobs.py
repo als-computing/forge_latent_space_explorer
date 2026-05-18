@@ -35,7 +35,7 @@ def list_flow_runs(tags: list[str] | None = Query(default=None)):
 def get_job_status(
     job_id: str,
     kind: Literal["latent-space", "clustering"],
-    project_name: str,
+    project_name: str = "",
 ):
     try:
         if kind == "latent-space":

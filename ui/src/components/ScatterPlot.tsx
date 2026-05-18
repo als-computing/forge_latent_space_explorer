@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import Plot from '../lib/Plot'
 import type { ClusterResponse, FeatureVectorResponse } from '../types/data'
 
@@ -15,7 +16,9 @@ const BASE_LAYOUT: Partial<Plotly.Layout> = {
 interface Props {
   data: FeatureVectorResponse | ClusterResponse | null
   onSelect: (indices: number[]) => void
+  onDeselect: () => void
   clearCount: number
+  dataRevision: number
 }
 
 function buildTraces(data: FeatureVectorResponse | ClusterResponse): Plotly.Data[] {
@@ -42,19 +45,23 @@ function buildTraces(data: FeatureVectorResponse | ClusterResponse): Plotly.Data
   })
 }
 
-export default function ScatterPlot({ data, onSelect, clearCount }: Props) {
+function ScatterPlot({ data, onSelect, onDeselect, clearCount, dataRevision }: Props) {
   const traces: Plotly.Data[] = data
     ? buildTraces(data)
     : [{ type: 'scattergl', mode: 'markers', x: [], y: [] } as Plotly.Data]
 
   const layout: Partial<Plotly.Layout> = {
     ...BASE_LAYOUT,
+    uirevision: dataRevision,
     showlegend: !!data && 'clusters' in data,
     legend: { orientation: 'h', y: -0.15 },
   }
 
   function handleSelected(e: Plotly.PlotSelectionEvent) {
-    if (!e?.points?.length) return
+    if (!e?.points?.length) {
+      onDeselect()
+      return
+    }
     onSelect(e.points.map(p => p.pointIndex))
   }
 
@@ -75,3 +82,5 @@ export default function ScatterPlot({ data, onSelect, clearCount }: Props) {
     />
   )
 }
+
+export default memo(ScatterPlot)

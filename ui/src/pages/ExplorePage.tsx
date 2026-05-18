@@ -16,21 +16,29 @@ interface Props {
   onPercentilesChange: (v: [number, number]) => void
   mask: string
   onMaskChange: (v: string) => void
+  onDataProjectDictChange?: (dict: DataProjectDict) => void
+  clearCount?: number
 }
 
-function ExplorePage({ dataProjectDict, sessionConfig, projectName, masks, logTransform, onLogTransformChange, percentiles, onPercentilesChange, mask, onMaskChange }: Props) {
+function ExplorePage({ dataProjectDict, sessionConfig, projectName, masks, logTransform, onLogTransformChange, percentiles, onPercentilesChange, mask, onMaskChange, onDataProjectDictChange, clearCount = 0 }: Props) {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [latentSpaceJobId, setLatentSpaceJobId] = useState<string | null>(null)
   const [clusteringJobId, setClusteringJobId] = useState<string | null>(null)
   const [showClustersTrigger, setShowClustersTrigger] = useState(0)
   const [showFVTrigger, setShowFVTrigger] = useState(0)
 
-  // When a session is launched with a model config, pick up the submitted job ID
   useEffect(() => {
-    if (sessionConfig?.jobId) {
-      setLatentSpaceJobId(sessionConfig.jobId)
-    }
+    if (sessionConfig?.jobId) setLatentSpaceJobId(sessionConfig.jobId)
   }, [sessionConfig])
+
+  useEffect(() => {
+    if (clearCount > 0) {
+      setLatentSpaceJobId(null)
+      setClusteringJobId(null)
+      setShowFVTrigger(0)
+      setShowClustersTrigger(0)
+    }
+  }, [clearCount])
 
   return (
     <div>
@@ -45,6 +53,8 @@ function ExplorePage({ dataProjectDict, sessionConfig, projectName, masks, logTr
         onMaskChange={onMaskChange}
         latentSpaceJobId={latentSpaceJobId}
         onLatentSpaceJobSubmitted={setLatentSpaceJobId}
+        onDataProjectDictChange={onDataProjectDictChange}
+        clearCount={clearCount}
         onShowFeatureVectors={() => setShowFVTrigger(n => n + 1)}
         onHideFeatureVectors={() => setShowFVTrigger(0)}
         onClusteringJobSubmitted={setClusteringJobId}
@@ -78,6 +88,7 @@ function ExplorePage({ dataProjectDict, sessionConfig, projectName, masks, logTr
           percentiles={percentiles}
           showFVTrigger={showFVTrigger}
           showClustersTrigger={showClustersTrigger}
+          hasDataOverview={!!dataProjectDict?.datasets?.length}
         />
       </div>
     </div>

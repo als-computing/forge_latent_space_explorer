@@ -27,7 +27,7 @@ class ClusteringJobRequest(BaseModel):
     percentiles: list[float] = [0.0, 100.0]
     mask: str | None = None
     job_name: str
-    project_name: str
+    project_name: str = ""
     dimension_reduction_job_id: str
 
 

@@ -21,6 +21,7 @@ function App() {
   const [modalOpen, setModalOpen] = useState(false)
   const [jobRunning, setJobRunning] = useState(false)
   const [projectName, setProjectName] = useState('')
+  const [clearCount, setClearCount] = useState(0)
 
   useEffect(() => { fetchMasks().then(setMasks).catch(() => {}) }, [])
 
@@ -58,7 +59,7 @@ function App() {
         onClose={() => setModalOpen(false)}
         dataProjectDict={dataProjectDict}
         hasData={dataProjectDict !== null}
-        onClearData={() => { setDataProjectDict(null); setSessionConfig(null); setModalOpen(false) }}
+        onClearData={() => { setDataProjectDict(null); setSessionConfig(null); setModalOpen(false); setClearCount(c => c + 1) }}
         onDataLoad={handleDataLoad}
         jobRunning={jobRunning}
         masks={masks}
@@ -76,7 +77,9 @@ function App() {
           element={
             <ExplorePage
               dataProjectDict={dataProjectDict}
+              onDataProjectDictChange={setDataProjectDict}
               sessionConfig={sessionConfig}
+              clearCount={clearCount}
               projectName={projectName}
               masks={masks}
               logTransform={logTransform}

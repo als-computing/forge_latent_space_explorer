@@ -89,14 +89,14 @@ export async function fetchFeatureVectors(
 }
 
 export async function fetchClusters(
-  latentSpaceJobId: string,
   clusteringJobId: string,
   projectName: string,
+  latentSpaceJobId = "",
 ): Promise<ClusterResponse> {
   const params = new URLSearchParams({
-    latent_space_job_id: latentSpaceJobId,
     clustering_job_id: clusteringJobId,
     project_name: projectName,
+    latent_space_job_id: latentSpaceJobId,
   })
   const res = await fetch(`/api/data/clusters?${params}`)
   if (!res.ok) throw new Error(`Failed to fetch clusters: ${res.status}`)
@@ -122,6 +122,20 @@ export async function fetchHeatmap(req: HeatmapRequest): Promise<HeatmapResponse
     body: JSON.stringify(req),
   })
   if (!res.ok) throw new Error(`Failed to fetch heatmap: ${res.status}`)
+  return res.json()
+}
+
+export async function fetchDataProjectDictFromJob(jobId: string): Promise<DataProjectDict> {
+  const params = new URLSearchParams({ dimension_reduction_job_id: jobId })
+  const res = await fetch(`/api/data/data-project-dict?${params}`)
+  if (!res.ok) throw new Error(`Failed to fetch data project dict: ${res.status}`)
+  return res.json()
+}
+
+export async function fetchDataProjectDictFromClusteringJob(jobId: string): Promise<DataProjectDict> {
+  const params = new URLSearchParams({ clustering_job_id: jobId })
+  const res = await fetch(`/api/data/data-project-dict?${params}`)
+  if (!res.ok) throw new Error(`Failed to fetch data project dict: ${res.status}`)
   return res.json()
 }
 

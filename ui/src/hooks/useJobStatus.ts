@@ -16,7 +16,7 @@ export function useJobStatus(
     if (intervalRef.current) clearInterval(intervalRef.current)
     setStatus(null)
 
-    if (!jobId || !projectName) return
+    if (!jobId) return
 
     async function check() {
       try {

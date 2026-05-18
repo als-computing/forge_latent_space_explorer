@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { fetchMlflowModels, submitLatentSpaceJob } from '../api/jobs'
+import { fetchDataProjectDictFromJob } from '../api/data'
 import { fetchModels } from '../api/models'
 import { useJobStatus } from '../hooks/useJobStatus'
 import type { DataProjectDict } from '../types/data'
@@ -18,6 +19,8 @@ interface Props {
   onJobSubmitted: (jobId: string) => void
   onShowFeatureVectors: () => void
   onHideFeatureVectors: () => void
+  onDataProjectDictChange?: (dict: DataProjectDict) => void
+  clearCount?: number
 }
 
 const C = {
@@ -197,6 +200,8 @@ export default function DimensionReduction({
   onJobSubmitted,
   onShowFeatureVectors,
   onHideFeatureVectors,
+  onDataProjectDictChange,
+  clearCount = 0,
 }: Props) {
   // MLflow models
   const [mlflowModels, setMlflowModels] = useState<MlflowModelOption[]>([])
@@ -221,10 +226,25 @@ export default function DimensionReduction({
 
   const [elapsedSec, setElapsedSec] = useState(0)
   const elapsedRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const autoShowRef = useRef(false)
 
   useEffect(() => {
-    if (!(status?.ready)) setShowFV(false)
+    if (status?.ready && autoShowRef.current) {
+      autoShowRef.current = false
+      setShowFV(true)
+      onShowFeatureVectors()
+    } else if (!status?.ready) {
+      setShowFV(false)
+    }
   }, [status?.ready])  // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (clearCount > 0) {
+      setActiveJobId(null)
+      setResult(null)
+      setShowFV(false)
+    }
+  }, [clearCount])
 
   useEffect(() => {
     if (effectiveJobId && !status?.ready) {
@@ -270,12 +290,20 @@ export default function DimensionReduction({
     setDimRedParams(prev => ({ ...prev, [key]: value }))
   }
 
-  function handleSelectPastJob(jobId: string | null) {
+  async function handleSelectPastJob(jobId: string | null) {
     if (!jobId) return
     setActiveJobId(jobId)
     onJobSubmitted(jobId)
     setResult(null)
     setShowFV(false)
+    if (onDataProjectDictChange) {
+      try {
+        const dict = await fetchDataProjectDictFromJob(jobId)
+        onDataProjectDictChange(dict)
+      } catch {
+        // keep existing dataProjectDict if fetch fails
+      }
+    }
   }
 
   const canSubmit = !!dataProjectDict && !!mlflowModelId && !!selectedDimRed && !!projectName && !submitting
@@ -299,6 +327,7 @@ export default function DimensionReduction({
       })
       setResult(res)
       if (res.job_uid) {
+        autoShowRef.current = true
         setActiveJobId(res.job_uid)
         onJobSubmitted(res.job_uid)
       }

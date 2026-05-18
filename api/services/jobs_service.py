@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 import os
@@ -11,6 +12,7 @@ from tiled.client import from_uri as tiled_from_uri
 
 from mlex_utils.mlflow_utils.mlflow_model_client import MLflowModelClient
 from mlex_utils.prefect_utils.core import (
+    _read_flow_run,
     get_children_flow_run_ids,
     get_flow_run_logs,
     get_flow_run_name,
@@ -42,6 +44,22 @@ USER = os.getenv("USER", "")
 logger = logging.getLogger(__name__)
 _mlflow_client = MLflowModelClient()
 
+_SYSTEM_TAGS = (
+    set(json.loads(os.getenv("PREFECT_TAGS", '["latent-space-explorer"]')))
+    | {"latent-space", "clustering"}
+)
+
+
+def _resolve_project_name(job_id: str, project_name: str) -> str:
+    """Return project_name as-is if non-empty; otherwise read it from Prefect flow run tags."""
+    if project_name:
+        return project_name
+    flow_run = asyncio.run(_read_flow_run(job_id))
+    candidates = [t for t in (flow_run.tags or []) if t not in _SYSTEM_TAGS]
+    if not candidates:
+        raise ValueError(f"Cannot determine project_name from flow run {job_id}: no non-system tags found")
+    return candidates[0]
+
 
 def _prepare_project_container(user: str, project_name: str) -> None:
     """Create {user} and {user}/{project_name} containers in results Tiled if they don't exist."""
@@ -69,7 +87,7 @@ def _result_exists_in_tiled(result_uri: str) -> bool:
         return False
 
 
-def get_latent_space_job_status(job_id: str, project_name: str) -> JobStatusResponse:
+def get_latent_space_job_status(job_id: str, project_name: str = "") -> JobStatusResponse:
     """Check whether the dim-reduction child job has completed and its results exist in Tiled."""
     try:
         children = get_children_flow_run_ids(job_id)
@@ -87,12 +105,13 @@ def get_latent_space_job_status(job_id: str, project_name: str) -> JobStatusResp
     if state_str != "COMPLETED":
         return JobStatusResponse(ready=False, state=state_str)
 
+    project_name = _resolve_project_name(job_id, project_name)
     result_uri = f"{USER}/{project_name}/{child_id}"
     ready = _result_exists_in_tiled(result_uri)
     return JobStatusResponse(ready=ready, state=state_str, result_uri=result_uri if ready else None)
 
 
-def get_clustering_job_status(job_id: str, project_name: str) -> JobStatusResponse:
+def get_clustering_job_status(job_id: str, project_name: str = "") -> JobStatusResponse:
     """Check whether the clustering child job has completed and its results exist in Tiled."""
     try:
         children = get_children_flow_run_ids(job_id)
@@ -109,6 +128,7 @@ def get_clustering_job_status(job_id: str, project_name: str) -> JobStatusRespon
     if state_str != "COMPLETED":
         return JobStatusResponse(ready=False, state=state_str)
 
+    project_name = _resolve_project_name(job_id, project_name)
     result_uri = f"{USER}/{project_name}/{child_id}"
     ready = _result_exists_in_tiled(result_uri)
     return JobStatusResponse(ready=ready, state=state_str, result_uri=result_uri if ready else None)
@@ -213,10 +233,11 @@ def submit_latent_space_job(req: LatentSpaceJobRequest) -> JobSubmitResponse:
 
 
 def submit_clustering_job(req: ClusteringJobRequest) -> JobSubmitResponse:
+    project_name = _resolve_project_name(req.dimension_reduction_job_id, req.project_name)
     children_job_ids = get_children_flow_run_ids(req.dimension_reduction_job_id)
     child_job_id = children_job_ids[1]
 
-    expected_uri = f"/{USER}/{req.project_name}/{child_job_id}"
+    expected_uri = f"/{USER}/{project_name}/{child_job_id}"
     data_uris = [expected_uri]
     results_dir = f"{WRITE_DIR}/{USER}"
 
@@ -225,8 +246,9 @@ def submit_clustering_job(req: ClusteringJobRequest) -> JobSubmitResponse:
         "data_uris": data_uris,
         "data_type": "tiled",
         "root_uri": RESULTS_TILED_URI,
+        "data_tiled_api_key": RESULTS_TILED_API_KEY,
         "save_model_path": f"{results_dir}/models",
-        "results_tiled_uri": _results_tiled_url(USER, req.project_name),
+        "results_tiled_uri": _results_tiled_url(USER, project_name),
         "results_dir": results_dir,
     }
 
@@ -255,14 +277,14 @@ def submit_clustering_job(req: ClusteringJobRequest) -> JobSubmitResponse:
         )
 
     try:
-        _prepare_project_container(USER, req.project_name)
+        _prepare_project_container(USER, project_name)
         current_time = datetime.now(ZoneInfo(TIMEZONE)).strftime("%Y/%m/%d %H:%M:%S")
         dim_red_name = get_flow_run_name(req.dimension_reduction_job_id)
         job_uid = str(schedule_prefect_flow(
             FLOW_NAME,
             parameters=job_params,
             flow_run_name=f"{dim_red_name} {req.job_name} {current_time}",
-            tags=PREFECT_TAGS + [req.project_name, "clustering"],
+            tags=PREFECT_TAGS + [project_name, "clustering"],
         ))
         return JobSubmitResponse(
             job_uid=job_uid,

@@ -16,6 +16,8 @@ interface Props {
   onMaskChange: (v: string) => void
   latentSpaceJobId: string | null
   onLatentSpaceJobSubmitted: (jobId: string) => void
+  onDataProjectDictChange?: (dict: DataProjectDict) => void
+  clearCount?: number
   onShowFeatureVectors: () => void
   onHideFeatureVectors: () => void
   onClusteringJobSubmitted: (jobId: string) => void
@@ -97,6 +99,8 @@ export default function Sidebar({
   mask, onMaskChange,
   latentSpaceJobId,
   onLatentSpaceJobSubmitted,
+  onDataProjectDictChange,
+  clearCount,
   onShowFeatureVectors,
   onHideFeatureVectors,
   onClusteringJobSubmitted,
@@ -150,6 +154,8 @@ export default function Sidebar({
               onJobSubmitted={onLatentSpaceJobSubmitted}
               onShowFeatureVectors={onShowFeatureVectors}
               onHideFeatureVectors={onHideFeatureVectors}
+              onDataProjectDictChange={onDataProjectDictChange}
+              clearCount={clearCount}
             />
           </AccordionItem>
           <AccordionItem title="Clustering">
@@ -162,6 +168,8 @@ export default function Sidebar({
               onJobSubmitted={onClusteringJobSubmitted}
               onShowClusters={onShowClusters}
               onHideClusters={onHideClusters}
+              onDataProjectDictChange={onDataProjectDictChange}
+              clearCount={clearCount}
             />
           </AccordionItem>
         </div>

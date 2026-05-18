@@ -66,7 +66,7 @@ def browse_tiled(req: BrowseTiledRequest):
 
 
 @router.get("/feature-vectors", response_model=FeatureVectorResponse)
-def get_feature_vectors(latent_space_job_id: str, project_name: str):
+def get_feature_vectors(latent_space_job_id: str, project_name: str = ""):
     try:
         return data_service.get_feature_vectors(latent_space_job_id, project_name)
     except Exception as e:
@@ -74,9 +74,9 @@ def get_feature_vectors(latent_space_job_id: str, project_name: str):
 
 
 @router.get("/clusters", response_model=ClusterResponse)
-def get_clusters(latent_space_job_id: str, clustering_job_id: str, project_name: str):
+def get_clusters(clustering_job_id: str, project_name: str = "", latent_space_job_id: str = ""):
     try:
-        return data_service.get_clusters(latent_space_job_id, clustering_job_id, project_name)
+        return data_service.get_clusters(clustering_job_id, project_name, latent_space_job_id)
     except Exception as e:
         raise HTTPException(status_code=502, detail=str(e))
 
@@ -87,6 +87,20 @@ def get_overview(req: OverviewRequest):
         return data_service.get_overview(req)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/data-project-dict", response_model=DataProjectDictResponse)
+def get_data_project_dict(dimension_reduction_job_id: str = "", clustering_job_id: str = ""):
+    try:
+        if dimension_reduction_job_id:
+            return data_service.get_data_project_dict_from_job(dimension_reduction_job_id)
+        elif clustering_job_id:
+            return data_service.get_data_project_dict_from_clustering_job(clustering_job_id)
+        raise HTTPException(status_code=400, detail="Provide dimension_reduction_job_id or clustering_job_id")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e))
 
 
 @router.post("/heatmap", response_model=HeatmapResponse)

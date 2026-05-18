@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Eraser, LassoSelect, SquareDashedMousePointer } from 'lucide-react'
 import { fetchClusters, fetchFeatureVectors, fetchHeatmap } from '../api/data'
 import type { ClusterResponse, DataProjectDict, FeatureVectorResponse, HeatmapResponse } from '../types/data'
@@ -14,6 +14,7 @@ interface Props {
   percentiles?: [number, number]
   showFVTrigger?: number
   showClustersTrigger?: number
+  hasDataOverview?: boolean
 }
 
 const toggleBtnStyle = (active: boolean): React.CSSProperties => ({
@@ -36,41 +37,71 @@ export default function VisualizationPanel({
   percentiles = [0, 100],
   showFVTrigger = 0,
   showClustersTrigger = 0,
+  hasDataOverview = false,
 }: Props) {
   const [scatterData, setScatterData] = useState<FeatureVectorResponse | ClusterResponse | null>(null)
+  const [scatterError, setScatterError] = useState<string | null>(null)
   const [heatmapResult, setHeatmapResult] = useState<HeatmapResponse | null>(null)
+  const [heatmapLoading, setHeatmapLoading] = useState(false)
   const [heatmapError, setHeatmapError] = useState<string | null>(null)
   const [displayOption, setDisplayOption] = useState<'mean' | 'std'>('mean')
   const [clearCount, setClearCount] = useState(0)
+  const [dataRevision, setDataRevision] = useState(0)
   const [selectedIndices, setSelectedIndices] = useState<number[]>([])
+  console.log("heatmapresult", heatmapResult)
 
   async function handleShowFeatureVectors() {
-    if (!latentSpaceJobId || !projectName) return
+    if (!latentSpaceJobId) return
     setHeatmapResult(null)
-    setScatterData(await fetchFeatureVectors(latentSpaceJobId, projectName))
+    setHeatmapError(null)
+    setSelectedIndices([])
+    setScatterError(null)
+    try {
+      setScatterData(await fetchFeatureVectors(latentSpaceJobId, projectName))
+      setDataRevision(r => r + 1)
+    } catch (err) {
+      setScatterError(err instanceof Error ? err.message : 'Failed to load feature vectors')
+    }
   }
 
   useEffect(() => {
     if (showFVTrigger > 0) handleShowFeatureVectors()
     else setScatterData(null)
-  }, [showFVTrigger])  // eslint-disable-line react-hooks/exhaustive-deps
+  }, [showFVTrigger, latentSpaceJobId, projectName])  // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (showClustersTrigger > 0) handleShowClusters()
     else setScatterData(null)
-  }, [showClustersTrigger])  // eslint-disable-line react-hooks/exhaustive-deps
+  }, [showClustersTrigger, latentSpaceJobId, clusteringJobId, projectName])  // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleShowClusters() {
-    if (!latentSpaceJobId || !clusteringJobId || !projectName) return
+    if (!clusteringJobId) return
     setHeatmapResult(null)
-    setScatterData(await fetchClusters(latentSpaceJobId, clusteringJobId, projectName))
+    setHeatmapError(null)
+    setSelectedIndices([])
+    setScatterError(null)
+    try {
+      setScatterData(await fetchClusters(clusteringJobId, projectName, latentSpaceJobId ?? ""))
+      setDataRevision(r => r + 1)
+    } catch (err) {
+      setScatterError(err instanceof Error ? err.message : 'Failed to load clusters')
+    }
   }
 
-  async function handleSelect(indices: number[]) {
+  const handleDeselect = useCallback(() => {
+    setSelectedIndices([])
+    setHeatmapResult(null)
+    setHeatmapError(null)
+  }, [])
+
+  const handleSelect = useCallback(async (indices: number[]) => {
     setSelectedIndices(indices)
+    console.log("dataProjectDict", dataProjectDict);
     if (!dataProjectDict || indices.length === 0) return
     setHeatmapError(null)
+    setHeatmapLoading(true)
     try {
+      console.log("TRY")
       setHeatmapResult(
         await fetchHeatmap({
           data_project_dict: dataProjectDict,
@@ -81,14 +112,18 @@ export default function VisualizationPanel({
         }),
       )
     } catch (err) {
+      console.log("ERROR", err)
       setHeatmapError(err instanceof Error ? err.message : 'Failed to load heatmap')
+    } finally {
+      setHeatmapLoading(false)
     }
-  }
+  }, [dataProjectDict, logTransform, percentiles, displayOption])
 
   async function handleDisplayChange(v: 'mean' | 'std') {
     setDisplayOption(v)
     if (!dataProjectDict || selectedIndices.length === 0) return
     setHeatmapError(null)
+    setHeatmapLoading(true)
     try {
       setHeatmapResult(
         await fetchHeatmap({
@@ -101,6 +136,8 @@ export default function VisualizationPanel({
       )
     } catch (err) {
       setHeatmapError(err instanceof Error ? err.message : 'Failed to load heatmap')
+    } finally {
+      setHeatmapLoading(false)
     }
   }
 
@@ -113,7 +150,7 @@ export default function VisualizationPanel({
       minHeight: 0,
       display: 'flex',
       flexDirection: 'column',
-      marginTop: 10,
+      marginTop: hasDataOverview ? 10 : 0,
     }}>
       {/* Card header */}
       <div style={{
@@ -141,7 +178,7 @@ export default function VisualizationPanel({
               <span>tools</span>
             </div>
             <button
-              onClick={() => { setClearCount(c => c + 1); setSelectedIndices([]) }}
+              onClick={() => { setClearCount(c => c + 1); handleDeselect() }}
               title="Clear lasso selection"
               style={{
                 display: 'flex',
@@ -180,7 +217,7 @@ export default function VisualizationPanel({
         {/* Plots row */}
         <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <ScatterPlot data={scatterData} onSelect={handleSelect} clearCount={clearCount} />
+            <ScatterPlot data={scatterData} onSelect={handleSelect} onDeselect={handleDeselect} clearCount={clearCount} dataRevision={dataRevision} />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <Heatmap result={heatmapResult} />
@@ -190,6 +227,12 @@ export default function VisualizationPanel({
         {/* Stats row */}
         <div style={{ flexShrink: 0, paddingTop: 4, fontSize: '0.875rem' }}>
           Number of images selected: {selectedIndices.length}
+          {heatmapLoading && (
+            <span style={{ marginLeft: 12, color: '#666' }}>Loading heatmap...</span>
+          )}
+          {scatterError && (
+            <span style={{ marginLeft: 12, color: 'red' }}>{scatterError}</span>
+          )}
           {heatmapError && (
             <span style={{ marginLeft: 12, color: 'red' }}>{heatmapError}</span>
           )}

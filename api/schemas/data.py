@@ -51,7 +51,8 @@ class DefaultTiledUriResponse(BaseModel):
 
 
 class HeatmapRequest(BaseModel):
-    data_project_dict: dict[str, Any]
+    data_project_dict: dict[str, Any] | None = None
+    dimension_reduction_job_id: str | None = None
     selected_indices: list[int]
     log_transform: bool = False
     percentiles: list[float] = [0.0, 100.0]
