@@ -7,10 +7,20 @@ const COLORS = [
   '#19d3f3', '#ff6692', '#b6e880', '#ff97ff', '#fecb52',
 ]
 
+const DARK = '#343a40'
+const AXIS_COLOR = 'rgba(255,255,255,0.35)'
+const GRID_COLOR = 'rgba(255,255,255,0.08)'
+
 const BASE_LAYOUT: Partial<Plotly.Layout> = {
   dragmode: 'lasso',
   margin: { l: 20, r: 20, t: 20, b: 20, pad: 0 },
   autosize: true,
+  paper_bgcolor: DARK,
+  plot_bgcolor: DARK,
+  font: { color: 'rgba(255,255,255,0.65)', family: "'IBM Plex Mono', monospace", size: 10 },
+  xaxis: { gridcolor: GRID_COLOR, zerolinecolor: GRID_COLOR, tickfont: { color: AXIS_COLOR }, title: { font: { color: AXIS_COLOR } } },
+  yaxis: { gridcolor: GRID_COLOR, zerolinecolor: GRID_COLOR, tickfont: { color: AXIS_COLOR }, title: { font: { color: AXIS_COLOR } } },
+  legend: { bgcolor: 'rgba(52,58,64,0.9)', bordercolor: 'rgba(255,255,255,0.15)', borderwidth: 1 },
 }
 
 interface Props {

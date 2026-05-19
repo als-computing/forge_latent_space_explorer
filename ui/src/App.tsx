@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import Header from './components/Header'
+import NoSessionModal from './components/NoSessionModal'
 import SessionModal from './components/SessionModal'
 import type { SessionConfig } from './components/SessionModal'
 import ExplorePage from './pages/ExplorePage'
@@ -19,6 +20,7 @@ function App() {
   const [dataProjectDict, setDataProjectDict] = useState<DataProjectDict | null>(null)
   const [sessionConfig, setSessionConfig] = useState<SessionConfig | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
+  const [welcomeOpen, setWelcomeOpen] = useState(true)
   const [jobRunning, setJobRunning] = useState(false)
   const [projectName, setProjectName] = useState('')
   const [clearCount, setClearCount] = useState(0)
@@ -54,6 +56,11 @@ function App() {
         onOpenModal={() => setModalOpen(true)}
         jobRunning={jobRunning}
       />
+      <NoSessionModal
+        open={welcomeOpen && !dataProjectDict}
+        onClose={() => setWelcomeOpen(false)}
+        onSetUpSession={() => { setWelcomeOpen(false); setModalOpen(true) }}
+      />
       <SessionModal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
@@ -88,6 +95,7 @@ function App() {
               onPercentilesChange={setPercentiles}
               mask={mask}
               onMaskChange={setMask}
+
             />
           }
         />

@@ -23,6 +23,7 @@ interface Props {
   onClusteringJobSubmitted: (jobId: string) => void
   onShowClusters: () => void
   onHideClusters: () => void
+  onModelInfoChange?: (autoencoderLabel: string | null, dimRedName: string | null) => void
   masks: string[]
   isOpen: boolean
   onToggle: () => void
@@ -106,6 +107,7 @@ export default function Sidebar({
   onClusteringJobSubmitted,
   onShowClusters,
   onHideClusters,
+  onModelInfoChange,
   masks,
   isOpen,
   onToggle,
@@ -155,6 +157,7 @@ export default function Sidebar({
               onShowFeatureVectors={onShowFeatureVectors}
               onHideFeatureVectors={onHideFeatureVectors}
               onDataProjectDictChange={onDataProjectDictChange}
+              onModelInfoChange={onModelInfoChange}
               clearCount={clearCount}
             />
           </AccordionItem>

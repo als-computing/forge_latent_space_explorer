@@ -20,6 +20,7 @@ interface Props {
   onShowFeatureVectors: () => void
   onHideFeatureVectors: () => void
   onDataProjectDictChange?: (dict: DataProjectDict) => void
+  onModelInfoChange?: (autoencoderLabel: string | null, dimRedName: string | null) => void
   clearCount?: number
 }
 
@@ -201,6 +202,7 @@ export default function DimensionReduction({
   onShowFeatureVectors,
   onHideFeatureVectors,
   onDataProjectDictChange,
+  onModelInfoChange,
   clearCount = 0,
 }: Props) {
   // MLflow models
@@ -245,6 +247,12 @@ export default function DimensionReduction({
       setShowFV(false)
     }
   }, [clearCount])
+
+  useEffect(() => {
+    if (!onModelInfoChange) return
+    const aeLabel = mlflowModels.find(m => m.value === mlflowModelId)?.label ?? null
+    onModelInfoChange(aeLabel, selectedDimRed?.model_name ?? null)
+  }, [mlflowModelId, selectedDimRed, mlflowModels]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (effectiveJobId && !status?.ready) {

@@ -15,17 +15,30 @@ interface Props {
   showFVTrigger?: number
   showClustersTrigger?: number
   hasDataOverview?: boolean
+  autoencoderLabel?: string | null
+  dimRedLabel?: string | null
+}
+
+const C = {
+  bg: '#343a40',
+  border: 'rgba(255,255,255,0.1)',
+  borderHi: 'rgba(255,255,255,0.25)',
+  text: 'white',
+  textMuted: 'rgba(255,255,255,0.65)',
+  textDim: 'rgba(255,255,255,0.35)',
+  accent: '#4f8ef7',
+  mono: "'IBM Plex Mono', monospace",
 }
 
 const toggleBtnStyle = (active: boolean): React.CSSProperties => ({
-  padding: '4px 0',
-  width: 160,
-  border: '1px solid #0d6efd',
-  backgroundColor: active ? '#0d6efd' : 'white',
-  color: active ? 'white' : '#0d6efd',
+  padding: '3px 10px',
+  border: `1px solid ${active ? C.accent : C.border}`,
+  backgroundColor: active ? C.accent : 'rgba(255,255,255,0.06)',
+  color: active ? 'white' : C.textMuted,
   cursor: 'pointer',
-  fontSize: '0.875rem',
-  lineHeight: 1.5,
+  fontFamily: C.mono,
+  fontSize: 11,
+  letterSpacing: '.04em',
 })
 
 export default function VisualizationPanel({
@@ -38,6 +51,8 @@ export default function VisualizationPanel({
   showFVTrigger = 0,
   showClustersTrigger = 0,
   hasDataOverview = false,
+  autoencoderLabel = null,
+  dimRedLabel = null,
 }: Props) {
   const [scatterData, setScatterData] = useState<FeatureVectorResponse | ClusterResponse | null>(null)
   const [scatterError, setScatterError] = useState<string | null>(null)
@@ -141,102 +156,121 @@ export default function VisualizationPanel({
     }
   }
 
+  const totalPoints = scatterData?.vectors.length ?? 0
+  const datasetName = dataProjectDict?.root_uri?.split('/').filter(Boolean).pop()
+    ?? dataProjectDict?.datasets[0]?.uri?.split('/').filter(Boolean).pop()
+    ?? null
+
   return (
     <div style={{
-      border: '1px solid rgba(0,0,0,0.175)',
+      border: `1px solid ${C.border}`,
       borderRadius: '0.375rem',
-      backgroundColor: 'white',
+      backgroundColor: C.bg,
       flex: 1,
       minHeight: 0,
       display: 'flex',
       flexDirection: 'column',
       marginTop: hasDataOverview ? 10 : 0,
     }}>
-      {/* Card header */}
+      {/* Header */}
       <div style={{
-        padding: '0.5rem 1rem',
-        backgroundColor: 'rgba(0,0,0,0.03)',
-        borderBottom: '1px solid rgba(0,0,0,0.175)',
-        fontWeight: 500,
+        height: 34,
+        display: 'flex',
+        alignItems: 'center',
+        padding: '0 12px',
+        borderBottom: `1px solid ${C.border}`,
+        gap: 8,
         flexShrink: 0,
       }}>
-        Latent Space Analysis
+        <span style={{ fontFamily: C.mono, fontSize: 10, fontWeight: 500, letterSpacing: '.1em', textTransform: 'uppercase', color: C.textMuted }}>
+          Latent Space
+        </span>
+        {totalPoints > 0 && (
+          <span style={{ fontFamily: C.mono, fontSize: 10, color: C.textDim, background: 'rgba(0,0,0,0.2)', padding: '2px 6px', borderRadius: 3 }}>
+            {totalPoints.toLocaleString()} pts
+          </span>
+        )}
+        {selectedIndices.length > 0 && (
+          <span style={{ fontFamily: C.mono, fontSize: 10, color: C.accent, background: 'rgba(79,142,247,0.12)', padding: '2px 6px', borderRadius: 3 }}>
+            {selectedIndices.length.toLocaleString()} selected
+          </span>
+        )}
+
+        {/* Right-side toolbar */}
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <button
+            onClick={() => { setClearCount(c => c + 1); handleDeselect() }}
+            title="Clear selection"
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              padding: 5, background: 'rgba(255,255,255,0.06)',
+              border: `1px solid ${C.border}`, color: C.textMuted,
+              borderRadius: 4, cursor: 'pointer',
+            }}
+          >
+            <Eraser size={13} />
+          </button>
+          <div style={{ width: 1, height: 14, background: C.border }} />
+          <button onClick={() => handleDisplayChange('mean')} style={{ ...toggleBtnStyle(displayOption === 'mean'), borderRadius: '4px 0 0 4px' }}>
+            Mean
+          </button>
+          <button onClick={() => handleDisplayChange('std')} style={{ ...toggleBtnStyle(displayOption === 'std'), borderRadius: '0 4px 4px 0', borderLeft: 'none' }}>
+            Std Dev
+          </button>
+        </div>
       </div>
 
-      {/* Card body */}
-      <div style={{ padding: '0.75rem 1rem', flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+      {/* Selection hint */}
+      <div style={{ padding: '4px 12px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6, borderBottom: `1px solid ${C.border}` }}>
+        <span style={{ fontFamily: C.mono, fontSize: 10, color: C.textDim }}>
+          Select points using
+        </span>
+        <LassoSelect size={12} color={C.textDim} />
+        <span style={{ fontFamily: C.mono, fontSize: 10, color: C.textDim }}>or</span>
+        <SquareDashedMousePointer size={12} color={C.textDim} />
+        {scatterError && <span style={{ marginLeft: 8, fontFamily: C.mono, fontSize: 10, color: '#ef4444' }}>{scatterError}</span>}
+        {heatmapLoading && <span style={{ marginLeft: 8, fontFamily: C.mono, fontSize: 10, color: C.textDim }}>Loading heatmap…</span>}
+        {heatmapError && <span style={{ marginLeft: 8, fontFamily: C.mono, fontSize: 10, color: '#ef4444' }}>{heatmapError}</span>}
+      </div>
 
-        {/* Toolbar row */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, flexShrink: 0 }}>
-          {/* Left: lasso label + clear button */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.875rem' }}>
-              <span>Select a Group of Points using</span>
-              <LassoSelect size={16} />
-              <span>or</span>
-              <SquareDashedMousePointer size={16} />
-              <span>tools</span>
-            </div>
-            <button
-              onClick={() => { setClearCount(c => c + 1); handleDeselect() }}
-              title="Clear lasso selection"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '6.5px',
-                fontSize: '1.3rem',
-                backgroundColor: '#0d6efd',
-                border: '1px solid #0d6efd',
-                color: 'white',
-                borderRadius: 4,
-                cursor: 'pointer',
-              }}
-            >
-              <Eraser size={16} />
-            </button>
-          </div>
-
-          {/* Right: Mean / Standard Deviation toggle */}
-          <div style={{ display: 'flex' }}>
-            <button
-              onClick={() => handleDisplayChange('mean')}
-              style={{ ...toggleBtnStyle(displayOption === 'mean'), borderRadius: '4px 0 0 4px' }}
-            >
-              Mean
-            </button>
-            <button
-              onClick={() => handleDisplayChange('std')}
-              style={{ ...toggleBtnStyle(displayOption === 'std'), borderRadius: '0 4px 4px 0', borderLeft: 'none' }}
-            >
-              Standard Deviation
-            </button>
-          </div>
+      {/* Plots */}
+      <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <ScatterPlot data={scatterData} onSelect={handleSelect} onDeselect={handleDeselect} clearCount={clearCount} dataRevision={dataRevision} />
         </div>
-
-        {/* Plots row */}
-        <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <ScatterPlot data={scatterData} onSelect={handleSelect} onDeselect={handleDeselect} clearCount={clearCount} dataRevision={dataRevision} />
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <Heatmap result={heatmapResult} />
-          </div>
+        <div style={{ flex: 1, minWidth: 0, borderLeft: `1px solid ${C.border}` }}>
+          <Heatmap result={heatmapResult} />
         </div>
+      </div>
 
-        {/* Stats row */}
-        <div style={{ flexShrink: 0, paddingTop: 4, fontSize: '0.875rem' }}>
-          Number of images selected: {selectedIndices.length}
-          {heatmapLoading && (
-            <span style={{ marginLeft: 12, color: '#666' }}>Loading heatmap...</span>
-          )}
-          {scatterError && (
-            <span style={{ marginLeft: 12, color: 'red' }}>{scatterError}</span>
-          )}
-          {heatmapError && (
-            <span style={{ marginLeft: 12, color: 'red' }}>{heatmapError}</span>
-          )}
-        </div>
+      {/* Footer */}
+      <div style={{
+        height: 26,
+        borderTop: `1px solid ${C.border}`,
+        display: 'flex',
+        alignItems: 'center',
+        padding: '0 12px',
+        gap: 14,
+        flexShrink: 0,
+      }}>
+        {datasetName && (
+          <span style={{ fontFamily: C.mono, fontSize: 10, color: C.textDim }}>
+            dataset <span style={{ color: C.textMuted }}>{datasetName}</span>
+          </span>
+        )}
+        {autoencoderLabel && (
+          <span style={{ fontFamily: C.mono, fontSize: 10, color: C.textDim }}>
+            autoencoder <span style={{ color: C.textMuted }}>{autoencoderLabel}</span>
+          </span>
+        )}
+        {dimRedLabel && (
+          <span style={{ fontFamily: C.mono, fontSize: 10, color: C.textDim }}>
+            dim reduction <span style={{ color: C.textMuted }}>{dimRedLabel}</span>
+          </span>
+        )}
+        {!datasetName && !autoencoderLabel && !dimRedLabel && (
+          <span style={{ fontFamily: C.mono, fontSize: 10, color: C.textDim }}>no session active</span>
+        )}
       </div>
     </div>
   )

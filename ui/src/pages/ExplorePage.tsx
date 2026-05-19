@@ -26,6 +26,8 @@ function ExplorePage({ dataProjectDict, sessionConfig, projectName, masks, logTr
   const [clusteringJobId, setClusteringJobId] = useState<string | null>(null)
   const [showClustersTrigger, setShowClustersTrigger] = useState(0)
   const [showFVTrigger, setShowFVTrigger] = useState(0)
+  const [autoencoderLabel, setAutoencoderLabel] = useState<string | null>(null)
+  const [dimRedLabel, setDimRedLabel] = useState<string | null>(null)
 
   useEffect(() => {
     if (sessionConfig?.jobId) setLatentSpaceJobId(sessionConfig.jobId)
@@ -60,6 +62,7 @@ function ExplorePage({ dataProjectDict, sessionConfig, projectName, masks, logTr
         onClusteringJobSubmitted={setClusteringJobId}
         onShowClusters={() => setShowClustersTrigger(n => n + 1)}
         onHideClusters={() => setShowClustersTrigger(0)}
+        onModelInfoChange={(ae, dr) => { setAutoencoderLabel(ae); setDimRedLabel(dr) }}
         masks={masks}
         isOpen={sidebarOpen}
         onToggle={() => setSidebarOpen(o => !o)}
@@ -89,6 +92,9 @@ function ExplorePage({ dataProjectDict, sessionConfig, projectName, masks, logTr
           showFVTrigger={showFVTrigger}
           showClustersTrigger={showClustersTrigger}
           hasDataOverview={!!dataProjectDict?.datasets?.length}
+          autoencoderLabel={autoencoderLabel}
+          dimRedLabel={dimRedLabel}
+
         />
       </div>
     </div>
