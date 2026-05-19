@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Settings, ChevronDown } from 'lucide-react'
+import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
 import Clustering from './Clustering'
 import DataTransformation from './DataTransformation'
 import DimensionReduction from './DimensionReduction'
@@ -92,6 +92,43 @@ function AccordionItem({
   )
 }
 
+function HandleButton({ isOpen, onToggle }: { isOpen: boolean; onToggle: () => void }) {
+  const [hovered, setHovered] = useState(false)
+
+  return (
+    <button
+      onClick={onToggle}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      title={isOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+      style={{
+        position: 'fixed',
+        top: '50%',
+        left: isOpen ? 400 : 0,
+        transform: 'translateY(-50%)',
+        width: 16,
+        height: 48,
+        zIndex: 1051,
+        border: 'none',
+        borderRadius: '0 6px 6px 0',
+        backgroundColor: hovered ? '#868e96' : '#495057',
+        color: 'rgba(255,255,255,0.8)',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        opacity: hovered ? 1 : 0.35,
+        transition: 'left 0.3s ease, opacity 0.2s, background-color 0.2s',
+        padding: 0,
+      }}
+    >
+      {isOpen
+        ? <ChevronLeft size={12} />
+        : <ChevronRight size={12} />}
+    </button>
+  )
+}
+
 export default function Sidebar({
   dataProjectDict,
   projectName,
@@ -178,35 +215,8 @@ export default function Sidebar({
         </div>
       </div>
 
-      {/* Toggle button */}
-      <div
-        style={{
-          position: 'fixed',
-          bottom: 60,
-          right: 10,
-          zIndex: 9999,
-          opacity: 0.8,
-        }}
-      >
-        <button
-          onClick={onToggle}
-          title="Toggle sidebar"
-          style={{
-            width: 36,
-            height: 36,
-            borderRadius: '50%',
-            border: 'none',
-            backgroundColor: '#6c757d',
-            color: 'white',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <Settings size={20} />
-        </button>
-      </div>
+      {/* Floating handle */}
+      <HandleButton isOpen={isOpen} onToggle={onToggle} />
     </>
   )
 }

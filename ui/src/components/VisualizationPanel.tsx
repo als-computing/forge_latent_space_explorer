@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Eraser, LassoSelect, SquareDashedMousePointer } from 'lucide-react'
-import { fetchClusters, fetchFeatureVectors, fetchHeatmap } from '../api/data'
+import { fetchClusters, fetchFeatureVectors, fetchHeatmap, fetchOverview } from '../api/data'
 import type { ClusterResponse, DataProjectDict, FeatureVectorResponse, HeatmapResponse } from '../types/data'
 import Heatmap from './Heatmap'
 import ScatterPlot from './ScatterPlot'
@@ -63,6 +63,13 @@ export default function VisualizationPanel({
   const [clearCount, setClearCount] = useState(0)
   const [dataRevision, setDataRevision] = useState(0)
   const [selectedIndices, setSelectedIndices] = useState<number[]>([])
+  const [tooltip, setTooltip] = useState<{ x: number; y: number; src: string; name: string } | null>(null)
+  const hoveredIndexRef = useRef<number | null>(null)
+  const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const scrollZoomActiveRef = useRef(false)
+  const scrollZoomTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const displayOptionRef = useRef<'mean' | 'std'>(displayOption)
+  displayOptionRef.current = displayOption
   console.log("heatmapresult", heatmapResult)
 
   async function handleShowFeatureVectors() {
@@ -103,6 +110,59 @@ export default function VisualizationPanel({
     }
   }
 
+  function getFilenameForIndex(index: number): string | null {
+    if (!dataProjectDict) return null
+    let prev = 0
+    for (const ds of dataProjectDict.datasets) {
+      const cum = ds.cumulative_data_count ?? 0
+      if (index < cum) return ds.filenames?.[index - prev] ?? null
+      prev = cum
+    }
+    return null
+  }
+
+  const handleWheel = useCallback(() => {
+    scrollZoomActiveRef.current = true
+    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current)
+    setTooltip(null)
+    if (scrollZoomTimerRef.current) clearTimeout(scrollZoomTimerRef.current)
+    scrollZoomTimerRef.current = setTimeout(() => {
+      scrollZoomActiveRef.current = false
+    }, 300)
+  }, [])
+
+  const handleHover = useCallback((pointIndex: number, clientX: number, clientY: number) => {
+    if (!dataProjectDict || scrollZoomActiveRef.current) return
+    if (hoveredIndexRef.current === pointIndex) return
+    hoveredIndexRef.current = pointIndex
+    setTooltip(null)
+    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current)
+    hoverTimerRef.current = setTimeout(async () => {
+      try {
+        const res = await fetchOverview({
+          data_project_dict: dataProjectDict,
+          log_transform: logTransform,
+          percentiles,
+          page: pointIndex,
+          page_size: 1,
+        })
+        if (hoveredIndexRef.current !== pointIndex) return
+        const src = res.images[0]
+        if (!src) return
+        const name = getFilenameForIndex(pointIndex) ?? `#${pointIndex}`
+        setTooltip({ x: clientX, y: clientY, src, name })
+      } catch {
+        // ignore fetch errors for tooltip
+      }
+    }, 500)
+  }, [dataProjectDict, logTransform, percentiles])  // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleUnhover = useCallback(() => {
+    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current)
+    hoveredIndexRef.current = null
+    setTooltip(null)
+  }, [])
+
   const handleDeselect = useCallback(() => {
     setSelectedIndices([])
     setHeatmapResult(null)
@@ -111,28 +171,25 @@ export default function VisualizationPanel({
 
   const handleSelect = useCallback(async (indices: number[]) => {
     setSelectedIndices(indices)
-    console.log("dataProjectDict", dataProjectDict);
     if (!dataProjectDict || indices.length === 0) return
     setHeatmapError(null)
     setHeatmapLoading(true)
     try {
-      console.log("TRY")
       setHeatmapResult(
         await fetchHeatmap({
           data_project_dict: dataProjectDict,
           selected_indices: indices,
           log_transform: logTransform,
           percentiles,
-          display_option: displayOption,
+          display_option: displayOptionRef.current,
         }),
       )
     } catch (err) {
-      console.log("ERROR", err)
       setHeatmapError(err instanceof Error ? err.message : 'Failed to load heatmap')
     } finally {
       setHeatmapLoading(false)
     }
-  }, [dataProjectDict, logTransform, percentiles, displayOption])
+  }, [dataProjectDict, logTransform, percentiles])
 
   async function handleDisplayChange(v: 'mean' | 'std') {
     setDisplayOption(v)
@@ -235,13 +292,44 @@ export default function VisualizationPanel({
 
       {/* Plots */}
       <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <ScatterPlot data={scatterData} onSelect={handleSelect} onDeselect={handleDeselect} clearCount={clearCount} dataRevision={dataRevision} />
+        <div style={{ flex: 1, minWidth: 0 }} onMouseLeave={handleUnhover} onWheel={handleWheel}>
+          <ScatterPlot data={scatterData} onSelect={handleSelect} onDeselect={handleDeselect} clearCount={clearCount} dataRevision={dataRevision} onHover={handleHover} onUnhover={handleUnhover} />
         </div>
         <div style={{ flex: 1, minWidth: 0, borderLeft: `1px solid ${C.border}` }}>
           <Heatmap result={heatmapResult} />
         </div>
       </div>
+
+      {/* Hover tooltip */}
+      {tooltip && (
+        <div style={{
+          position: 'fixed',
+          left: tooltip.x + 14,
+          top: tooltip.y - 90,
+          zIndex: 9999,
+          backgroundColor: '#1a1d20',
+          border: '1px solid rgba(255,255,255,0.15)',
+          borderRadius: 6,
+          padding: 8,
+          pointerEvents: 'none',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
+          width: 140,
+        }}>
+          <img src={tooltip.src} alt="" style={{ width: '100%', display: 'block', borderRadius: 3 }} />
+          <span style={{
+            display: 'block',
+            marginTop: 5,
+            fontFamily: C.mono,
+            fontSize: 10,
+            color: C.textMuted,
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}>
+            {tooltip.name}
+          </span>
+        </div>
+      )}
 
       {/* Footer */}
       <div style={{

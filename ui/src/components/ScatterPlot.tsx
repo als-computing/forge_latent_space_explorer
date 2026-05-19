@@ -29,6 +29,8 @@ interface Props {
   onDeselect: () => void
   clearCount: number
   dataRevision: number
+  onHover?: (pointIndex: number, clientX: number, clientY: number) => void
+  onUnhover?: () => void
 }
 
 function buildTraces(data: FeatureVectorResponse | ClusterResponse): Plotly.Data[] {
@@ -39,8 +41,8 @@ function buildTraces(data: FeatureVectorResponse | ClusterResponse): Plotly.Data
   if (!clusters) {
     return [
       is3d
-        ? { type: 'scatter3d', mode: 'markers', x: vectors.map(v => v[0]), y: vectors.map(v => v[1]), z: vectors.map(v => v[2]), marker: { size: 3, color: COLORS[0] } } as Plotly.Data
-        : { type: 'scattergl', mode: 'markers', x: vectors.map(v => v[0]), y: vectors.map(v => v[1]), marker: { size: 6, color: COLORS[0] } } as Plotly.Data,
+        ? { type: 'scatter3d', mode: 'markers', hoverinfo: 'none', x: vectors.map(v => v[0]), y: vectors.map(v => v[1]), z: vectors.map(v => v[2]), marker: { size: 3, color: COLORS[0] } } as Plotly.Data
+        : { type: 'scattergl', mode: 'markers', hoverinfo: 'none', x: vectors.map(v => v[0]), y: vectors.map(v => v[1]), marker: { size: 6, color: COLORS[0] } } as Plotly.Data,
     ]
   }
 
@@ -50,12 +52,12 @@ function buildTraces(data: FeatureVectorResponse | ClusterResponse): Plotly.Data
     const ys = vectors.map((_, idx) => clusters[idx] === label ? vectors[idx][1] : null) as (number | null)[]
     const zs = is3d ? vectors.map((_, idx) => clusters[idx] === label ? vectors[idx][2] : null) as (number | null)[] : undefined
     return is3d
-      ? { type: 'scatter3d', mode: 'markers', name: `Cluster ${label}`, x: xs, y: ys, z: zs, marker: { size: 3, color: COLORS[i % COLORS.length] } } as Plotly.Data
-      : { type: 'scattergl', mode: 'markers', name: `Cluster ${label}`, x: xs, y: ys, marker: { size: 6, color: COLORS[i % COLORS.length] } } as Plotly.Data
+      ? { type: 'scatter3d', mode: 'markers', hoverinfo: 'none', name: `Cluster ${label}`, x: xs, y: ys, z: zs, marker: { size: 3, color: COLORS[i % COLORS.length] } } as Plotly.Data
+      : { type: 'scattergl', mode: 'markers', hoverinfo: 'none', name: `Cluster ${label}`, x: xs, y: ys, marker: { size: 6, color: COLORS[i % COLORS.length] } } as Plotly.Data
   })
 }
 
-function ScatterPlot({ data, onSelect, onDeselect, clearCount, dataRevision }: Props) {
+function ScatterPlot({ data, onSelect, onDeselect, clearCount, dataRevision, onHover, onUnhover }: Props) {
   const traces: Plotly.Data[] = data
     ? buildTraces(data)
     : [{ type: 'scattergl', mode: 'markers', x: [], y: [] } as Plotly.Data]
@@ -80,15 +82,24 @@ function ScatterPlot({ data, onSelect, onDeselect, clearCount, dataRevision }: P
     onSelect([e.points[0].pointIndex])
   }
 
+  function handleHover(e: Plotly.PlotHoverEvent) {
+    if (!e?.points?.length || !onHover) return
+    const p = e.points[0]
+    const ev = e.event as MouseEvent
+    onHover(p.pointIndex, ev.clientX, ev.clientY)
+  }
+
   return (
     <Plot
       key={clearCount}
       data={traces}
       layout={layout}
-      config={{ responsive: true }}
+      config={{ responsive: true, scrollZoom: true }}
       style={{ width: '100%', height: '100%' }}
       onSelected={handleSelected}
       onClick={handleClick}
+      onHover={handleHover}
+      onUnhover={onUnhover}
     />
   )
 }
