@@ -125,7 +125,7 @@ export default function Clustering({
   // also updated when the user picks one directly from the Clustering panel.
   const [selectedLatentJobId, setSelectedLatentJobId] = useState<string | null>(latentSpaceJobId)
 
-  const [jobName, setJobName] = useState('clustering-job')
+  const [jobName, setJobName] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [result, setResult] = useState<JobSubmitResponse | null>(null)
   const [activeJobId, setActiveJobId] = useState<string | null>(null)
@@ -218,10 +218,15 @@ export default function Clustering({
     setModelParams(prev => ({ ...prev, [key]: value }))
   }
 
+  const defaultJobName = selectedModel
+    ? `${selectedModel.model_name} - ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`
+    : ''
+
   const canSubmit = !!selectedLatentJobId && !!selectedModel && !submitting
 
   async function handleSubmit() {
     if (!selectedLatentJobId || !selectedModel) return
+    const effectiveJobName = jobName.trim() || defaultJobName
     setSubmitting(true)
     setResult(null)
     setShowClusters(false)
@@ -233,7 +238,7 @@ export default function Clustering({
         log_transform: logTransform,
         percentiles,
         mask: mask !== 'None' ? mask : null,
-        job_name: jobName,
+        job_name: effectiveJobName,
         project_name: projectName,
         dimension_reduction_job_id: selectedLatentJobId,
       })
@@ -328,11 +333,12 @@ export default function Clustering({
 
       {/* ── Job name ── */}
       <div style={{ marginBottom: 12 }}>
-        <span style={labelStyle}>Job Name</span>
+        <span style={labelStyle}>Job Name (optional)</span>
         <input
           type="text"
           value={jobName}
           onChange={e => setJobName(e.target.value)}
+          placeholder={defaultJobName || 'auto-generated'}
           style={inputStyle}
         />
       </div>

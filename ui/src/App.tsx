@@ -68,6 +68,7 @@ function App() {
         hasData={dataProjectDict !== null}
         onClearData={() => { setDataProjectDict(null); setSessionConfig(null); setModalOpen(false); setClearCount(c => c + 1) }}
         onDataLoad={handleDataLoad}
+        onProjectNameChange={setProjectName}
         jobRunning={jobRunning}
         masks={masks}
         logTransform={logTransform}

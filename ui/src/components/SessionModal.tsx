@@ -26,6 +26,7 @@ interface Props {
   hasData: boolean
   onClearData: () => void
   onDataLoad: (dict: DataProjectDict, config: SessionConfig | null) => void
+  onProjectNameChange?: (name: string) => void
   jobRunning?: boolean
   masks?: string[]
   logTransform: boolean
@@ -36,7 +37,7 @@ interface Props {
   onMaskChange: (v: string) => void
 }
 
-export default function SessionModal({ open, onClose, dataProjectDict, hasData, onClearData, onDataLoad, jobRunning: externalJobRunning, masks = ['None'], logTransform, onLogTransformChange, percentiles, onPercentilesChange, mask, onMaskChange }: Props) {
+export default function SessionModal({ open, onClose, dataProjectDict, hasData, onClearData, onDataLoad, onProjectNameChange, jobRunning: externalJobRunning, masks = ['None'], logTransform, onLogTransformChange, percentiles, onPercentilesChange, mask, onMaskChange }: Props) {
   const [step, setStep] = useState(1)
   const total = STEPS.length
 
@@ -57,6 +58,7 @@ export default function SessionModal({ open, onClose, dataProjectDict, hasData, 
   const [mlflowModelLabel, setMlflowModelLabel] = useState<string | null>(null)
   const [dimRedModelName, setDimRedModelName] = useState<string | null>(null)
   const [dimRedParams, setDimRedParams] = useState<ParameterValues>({})
+  const [customProjectName, setCustomProjectName] = useState('')
 
   const launchedRef = useRef(false)
 
@@ -77,6 +79,7 @@ export default function SessionModal({ open, onClose, dataProjectDict, hasData, 
       setMlflowModelLabel(null)
       setDimRedModelName(null)
       setDimRedParams({})
+      setCustomProjectName('')
       setSubmittedJobId(null)
       setSubmittedJobLabel(null)
     } else {
@@ -118,7 +121,13 @@ export default function SessionModal({ open, onClose, dataProjectDict, hasData, 
 
     try {
       const uris = previewDict.datasets.map(ds => ds.uri)
-      const projectName = await deriveProjectName(uris)
+      const today = new Date().toISOString().slice(0, 16).replace('T', ' ')
+      const derivedName = await deriveProjectName(uris)
+      const defaultName = (mlflowModelLabel && dimRedModelName)
+        ? `${mlflowModelLabel} - ${dimRedModelName} - ${today}`
+        : derivedName
+      const projectName = customProjectName.trim() || defaultName
+      onProjectNameChange?.(projectName)
       const res = await submitLatentSpaceJob({
         data_project_dict: previewDict,
         model_name: dimRedModelName,
@@ -375,6 +384,8 @@ export default function SessionModal({ open, onClose, dataProjectDict, hasData, 
                 setDimRedModelName(name)
                 setDimRedParams(params)
               }}
+              customProjectName={customProjectName}
+              onCustomProjectNameChange={setCustomProjectName}
             />
           </div>
 
@@ -389,6 +400,7 @@ export default function SessionModal({ open, onClose, dataProjectDict, hasData, 
               mlflowModelLabel={mlflowModelLabel}
               dimRedModelName={dimRedModelName}
               dimRedParams={dimRedParams}
+              customProjectName={customProjectName}
               launching={launching}
               launchError={launchError}
               onLaunch={handleLaunch}
@@ -741,12 +753,16 @@ function Step3Model({
   dimRedModelName,
   dimRedParams,
   onDimRedChange,
+  customProjectName,
+  onCustomProjectNameChange,
 }: {
   mlflowModelId: string | null
   onMlflowModelChange: (id: string | null, label: string | null) => void
   dimRedModelName: string | null
   dimRedParams: ParameterValues
   onDimRedChange: (modelName: string, params: ParameterValues) => void
+  customProjectName: string
+  onCustomProjectNameChange: (v: string) => void
 }) {
   const [mlflowModels, setMlflowModels] = useState<MlflowModelOption[]>([])
   const [mlflowLoading, setMlflowLoading] = useState(false)
@@ -944,10 +960,39 @@ function Step3Model({
         display: 'flex',
         gap: 7,
         alignItems: 'flex-start',
+        marginBottom: 20,
       }}>
         <span style={{ flexShrink: 0, marginTop: 1 }}>⚠</span>
-        Changing the model after a session has started will clear all vectors and cluster results. 
+        Changing the model after a session has started will clear all vectors and cluster results.
       </div>
+
+      {/* Project name */}
+      <SectionTitle>Project name</SectionTitle>
+      <div style={{ ...labelStyle, marginBottom: 6 }}>
+        Leave blank to auto-generate from model and date.
+      </div>
+      <input
+        type="text"
+        value={customProjectName}
+        onChange={e => onCustomProjectNameChange(e.target.value)}
+        placeholder={(() => {
+          const aeLabel = mlflowModels.find(m => m.value === mlflowModelId)?.label ?? ''
+          const now = new Date().toISOString().slice(0, 16).replace('T', ' ')
+          const parts = [aeLabel, dimRedModelName, now].filter(Boolean)
+          return parts.length > 0 ? parts.join(' - ') : 'auto-generated'
+        })()}
+        style={{
+          width: '100%',
+          background: 'white',
+          border: '1px solid #dee2e6',
+          borderRadius: 4,
+          padding: '6px 8px',
+          fontFamily: 'monospace',
+          fontSize: 12,
+          color: '#212529',
+          boxSizing: 'border-box',
+        }}
+      />
     </div>
   )
 }
@@ -1142,6 +1187,7 @@ function Step4Summary({
   mlflowModelLabel,
   dimRedModelName,
   dimRedParams,
+  customProjectName,
   launching,
   launchError,
   onLaunch,
@@ -1154,12 +1200,17 @@ function Step4Summary({
   mlflowModelLabel: string | null
   dimRedModelName: string | null
   dimRedParams: ParameterValues
+  customProjectName: string
   launching: boolean
   launchError: string | null
   onLaunch: () => void
 }) {
   const canLaunch = !!fbSelection && !launching
   const hasModel = !!mlflowModelId && !!dimRedModelName
+
+  const today = new Date().toISOString().slice(0, 16).replace('T', ' ')
+  const displayProjectName = customProjectName.trim()
+    || (hasModel ? `${mlflowModelLabel ?? 'model'} - ${dimRedModelName} - ${today}` : '—')
 
   // Build a short params summary string
   const paramSummary = Object.entries(dimRedParams)
@@ -1215,6 +1266,13 @@ function Step4Summary({
           value={dimRedModelName ?? '—'}
           accent={dimRedModelName ? 'blue' : undefined}
         />
+        <div style={{ gridColumn: '1 / -1' }}>
+          <SumItem
+            label="Project name"
+            value={displayProjectName}
+            accent={customProjectName.trim() ? 'green' : undefined}
+          />
+        </div>
         {hasModel && (
           <div style={{ gridColumn: '1 / -1' }}>
             <SumItem label="Dim reduction params" value={paramSummary} />

@@ -12,12 +12,12 @@ from tiled.client import from_uri as tiled_from_uri
 
 from mlex_utils.mlflow_utils.mlflow_model_client import MLflowModelClient
 from mlex_utils.prefect_utils.core import (
+    _flow_run_query,
     _read_flow_run,
     get_children_flow_run_ids,
     get_flow_run_logs,
     get_flow_run_name,
     get_flow_run_state,
-    query_flow_runs,
     schedule_prefect_flow,
 )
 
@@ -71,9 +71,62 @@ def _prepare_project_container(user: str, project_name: str) -> None:
             client = client.create_container(key=key)
 
 
+def _build_flow_run_option(flow_run, mlflow_label_by_id: dict[str, str]) -> FlowRunOption:
+    if flow_run.state_name in {"Failed", "Crashed"}:
+        label = f"❌ {flow_run.name}"
+    elif flow_run.state_name == "Completed":
+        label = f"✅ {flow_run.name}"
+    elif flow_run.state_name == "Cancelled":
+        label = f"🚫 {flow_run.name}"
+    else:
+        label = f"🕑 {flow_run.name}"
+
+    candidates = [t for t in (flow_run.tags or []) if t not in _SYSTEM_TAGS]
+    project_name = candidates[0] if candidates else ''
+
+    algorithm = ''
+    autoencoder_model = ''
+    try:
+        params_list = (flow_run.parameters or {}).get('params_list', [])
+        if len(params_list) >= 2:
+            # dim-reduction job: [0] = ae extraction, [1] = dim reduction algorithm
+            algorithm = params_list[1].get('model_name', '')
+            mlflow_id = (
+                params_list[0]
+                .get('params', {})
+                .get('io_parameters', {})
+                .get('mlflow_model', '')
+            )
+            autoencoder_model = mlflow_label_by_id.get(mlflow_id, mlflow_id)
+        elif len(params_list) == 1:
+            # clustering job: [0] = clustering algorithm
+            algorithm = params_list[0].get('model_name', '')
+    except (AttributeError, TypeError, KeyError):
+        pass
+
+    date = str(flow_run.created)[:16].replace('T', ' ') if flow_run.created else ''
+
+    return FlowRunOption(
+        value=str(flow_run.id),
+        label=label,
+        project_name=project_name,
+        algorithm=algorithm,
+        autoencoder_model=autoencoder_model,
+        date=date,
+    )
+
+
 def get_flow_runs(tags: list[str] | None = None) -> list[FlowRunOption]:
-    runs = query_flow_runs(tags=tags or PREFECT_TAGS)
-    return [FlowRunOption(**r) for r in runs]
+    flow_runs = asyncio.run(_flow_run_query(tags=tags or PREFECT_TAGS))
+    try:
+        mlflow_label_by_id = {
+            opt['value']: opt['label']
+            for opt in _mlflow_client.get_mlflow_models(livemode=False)
+            if opt.get('value')
+        }
+    except Exception:
+        mlflow_label_by_id = {}
+    return [_build_flow_run_option(r, mlflow_label_by_id) for r in flow_runs]
 
 
 def _result_exists_in_tiled(result_uri: str) -> bool:

@@ -217,6 +217,8 @@ export default function DimensionReduction({
 
   // Job submission
   const [jobName] = useState('latent-space-job')
+  const [localProjectName, setLocalProjectName] = useState('')
+  const [activeProjectName, setActiveProjectName] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [result, setResult] = useState<JobSubmitResponse | null>(null)
   const [activeJobId, setActiveJobId] = useState<string | null>(null)
@@ -224,7 +226,7 @@ export default function DimensionReduction({
   const [showFV, setShowFV] = useState(false)
 
   const effectiveJobId = activeJobId ?? currentJobId
-  const status = useJobStatus(effectiveJobId, 'latent-space', projectName)
+  const status = useJobStatus(effectiveJobId, 'latent-space', activeProjectName || projectName)
 
   const [elapsedSec, setElapsedSec] = useState(0)
   const elapsedRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -245,6 +247,7 @@ export default function DimensionReduction({
       setActiveJobId(null)
       setResult(null)
       setShowFV(false)
+      setActiveProjectName('')
     }
   }, [clearCount])
 
@@ -314,10 +317,17 @@ export default function DimensionReduction({
     }
   }
 
-  const canSubmit = !!dataProjectDict && !!mlflowModelId && !!selectedDimRed && !!projectName && !submitting
+  const aeLabel = mlflowModels.find(m => m.value === mlflowModelId)?.label ?? ''
+  const today = new Date().toISOString().slice(0, 16).replace('T', ' ')
+  const defaultProjectName = aeLabel && selectedDimRed
+    ? `${aeLabel} - ${selectedDimRed.model_name} - ${today}`
+    : projectName
+
+  const canSubmit = !!dataProjectDict && !!mlflowModelId && !!selectedDimRed && !submitting
 
   async function handleSubmit() {
     if (!dataProjectDict || !mlflowModelId || !selectedDimRed) return
+    const effectiveProjectName = localProjectName.trim() || defaultProjectName
     setSubmitting(true)
     setResult(null)
     setShowFV(false)
@@ -330,13 +340,14 @@ export default function DimensionReduction({
         percentiles,
         mask: mask !== 'None' ? mask : null,
         job_name: jobName,
-        project_name: projectName,
+        project_name: effectiveProjectName,
         mlflow_model_id: mlflowModelId,
       })
       setResult(res)
       if (res.job_uid) {
         autoShowRef.current = true
         setActiveJobId(res.job_uid)
+        setActiveProjectName(effectiveProjectName)
         onJobSubmitted(res.job_uid)
       }
     } catch (e) {
@@ -453,6 +464,29 @@ export default function DimensionReduction({
       )}
 
       {divider}
+
+      {/* ── Project name ── */}
+      <div style={{ marginBottom: 10 }}>
+        <span style={labelStyle}>Project name (optional)</span>
+        <input
+          type="text"
+          value={localProjectName}
+          onChange={e => setLocalProjectName(e.target.value)}
+          placeholder={defaultProjectName || 'auto-generated'}
+          style={{
+            width: '100%',
+            background: C.bg3,
+            border: `1px solid ${C.border}`,
+            borderRadius: 4,
+            padding: '5px 8px',
+            fontFamily: C.mono,
+            fontSize: 12,
+            color: C.text,
+            outline: 'none',
+            boxSizing: 'border-box',
+          }}
+        />
+      </div>
 
       {/* ── Submit ── */}
       <button

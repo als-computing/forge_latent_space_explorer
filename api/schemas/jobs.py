@@ -38,8 +38,12 @@ class JobSubmitResponse(BaseModel):
 
 
 class FlowRunOption(BaseModel):
-    label: str
     value: str
+    label: str
+    project_name: str = ''
+    algorithm: str = ''
+    autoencoder_model: str = ''
+    date: str = ''
 
 
 class JobStatusResponse(BaseModel):

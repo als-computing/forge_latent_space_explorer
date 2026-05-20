@@ -35,8 +35,12 @@ export interface JobSubmitResponse {
 }
 
 export interface FlowRunOption {
-  label: string
   value: string
+  label: string
+  project_name: string
+  algorithm: string
+  autoencoder_model: string
+  date: string
 }
 
 export interface JobStatusResponse {
