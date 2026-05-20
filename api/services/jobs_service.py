@@ -198,8 +198,41 @@ def get_job_logs(job_id: str) -> list[str]:
 
 
 def get_mlflow_models() -> list[MlflowModelOption]:
-    options = _mlflow_client.get_mlflow_models(livemode=False)
-    return [MlflowModelOption(**opt) for opt in options]
+    base_options = _mlflow_client.get_mlflow_models(livemode=False)
+
+    # Build a lookup: model_name -> (algorithm, date) using one bulk versions query
+    enrichment: dict[str, tuple[str, str]] = {}
+    try:
+        all_versions = _mlflow_client.client.search_model_versions()
+        latest: dict[str, object] = {}
+        for v in all_versions:
+            cur = latest.get(v.name)
+            if cur is None or int(v.version) > int(cur.version):  # type: ignore[union-attr]
+                latest[v.name] = v
+        for name, v in latest.items():
+            try:
+                run = _mlflow_client.client.get_run(v.run_id)  # type: ignore[union-attr]
+                algorithm = run.data.tags.get('model_type', '')
+                ts = getattr(v, 'creation_timestamp', None) or run.info.start_time
+                date = (
+                    datetime.fromtimestamp(ts / 1000).strftime('%Y-%m-%d %H:%M')
+                    if ts else ''
+                )
+                enrichment[name] = (algorithm, date)
+            except Exception:
+                enrichment[name] = ('', '')
+    except Exception:
+        pass
+
+    return [
+        MlflowModelOption(
+            label=opt['label'],
+            value=opt['value'],
+            algorithm=enrichment.get(opt['value'] or '', ('', ''))[0],
+            date=enrichment.get(opt['value'] or '', ('', ''))[1],
+        )
+        for opt in base_options
+    ]
 
 
 def _results_tiled_url(user: str, project_name: str) -> str:

@@ -9,6 +9,7 @@ import { fetchOverview } from '../api/data'
 import { fetchMlflowModels, submitLatentSpaceJob } from '../api/jobs'
 import { fetchModels } from '../api/models'
 import { deriveProjectName } from '../utils/projectName'
+import MlflowModelSelect from './MlflowModelSelect'
 
 const STEPS = ['Data', 'Preprocessing', 'Model', 'Confirm'] as const
 
@@ -855,23 +856,17 @@ function Step3Model({
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 24 }}>
-        {mlflowModels.map(model => {
-          const id = model.value ?? model.label
-          const isSelected = mlflowModelId === model.value
-          return (
-            <ModelCard
-              key={id}
-              label={model.label}
-              selected={isSelected}
-              status={null}
-              onClick={() => isSelected
-                ? onMlflowModelChange(null, null)
-                : onMlflowModelChange(model.value ?? null, model.label)
-              }
-            />
-          )
-        })}
+      <div style={{ marginBottom: 24 }}>
+        <MlflowModelSelect
+          options={mlflowModels}
+          value={mlflowModelId}
+          onChange={v => {
+            const model = mlflowModels.find(m => m.value === v) ?? null
+            onMlflowModelChange(v, model?.label ?? null)
+          }}
+          loading={mlflowLoading}
+          variant="light"
+        />
       </div>
 
       {/* ── Dimension reduction ── */}
@@ -997,70 +992,6 @@ function Step3Model({
   )
 }
 
-const MODEL_STATUS_MAP: Record<string, { dot: string; label: string }> = {
-  READY: { dot: '#198754', label: 'Ready' },
-  PENDING_REGISTRATION: { dot: '#f59e0b', label: 'Registering…' },
-  FAILED_REGISTRATION: { dot: '#dc3545', label: 'Failed' },
-}
-
-function ModelCard({
-  label,
-  selected,
-  status,
-  onClick,
-}: {
-  label: string
-  selected: boolean
-  status: string | null
-  onClick: () => void
-}) {
-  const [hovered, setHovered] = useState(false)
-  const statusInfo = status ? (MODEL_STATUS_MAP[status] ?? { dot: '#adb5bd', label: status }) : null
-
-  return (
-    <div
-      onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        background: selected ? 'rgba(12,99,228,0.05)' : hovered ? '#f8f9fa' : 'white',
-        border: `${selected ? 2 : 1}px solid ${selected ? '#0c63e4' : hovered ? '#adb5bd' : '#dee2e6'}`,
-        borderRadius: 6,
-        padding: selected ? '9px 11px' : '10px 12px',
-        cursor: 'pointer',
-        transition: 'border-color 0.15s, background 0.15s',
-        minHeight: 62,
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'space-between',
-      }}
-    >
-      <div style={{ fontFamily: 'monospace', fontSize: 12, color: '#212529', wordBreak: 'break-all' }}>
-        {label}
-      </div>
-      {statusInfo && (
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 5,
-          marginTop: 6,
-        }}>
-          <span style={{
-            width: 7,
-            height: 7,
-            borderRadius: '50%',
-            background: statusInfo.dot,
-            flexShrink: 0,
-            display: 'inline-block',
-          }} />
-          <span style={{ fontSize: 10, fontFamily: 'monospace', color: '#6c757d' }}>
-            {statusInfo.label}
-          </span>
-        </div>
-      )}
-    </div>
-  )
-}
 
 function InlineParamInput({
   param,

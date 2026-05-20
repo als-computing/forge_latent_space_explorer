@@ -6,6 +6,8 @@ from pydantic import BaseModel
 class MlflowModelOption(BaseModel):
     label: str
     value: str | None
+    algorithm: str = ''
+    date: str = ''
 
 
 class LatentSpaceJobRequest(BaseModel):

@@ -7,6 +7,7 @@ import type { DataProjectDict } from '../types/data'
 import type { MlflowModelOption, JobSubmitResponse } from '../types/jobs'
 import type { GuiParameter, Model, ParameterValues } from '../types/models'
 import JobRunSelect from './JobRunSelect'
+import MlflowModelSelect from './MlflowModelSelect'
 import LogsModal from './LogsModal'
 
 interface Props {
@@ -51,37 +52,6 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   )
 }
 
-function ModelCard({ label, selected, onClick }: { label: string; selected: boolean; onClick: () => void }) {
-  const [hovered, setHovered] = useState(false)
-  return (
-    <div
-      onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        background: selected ? `rgba(79,142,247,0.12)` : hovered ? 'rgba(255,255,255,0.06)' : C.bg3,
-        border: `${selected ? 2 : 1}px solid ${selected ? C.accent : hovered ? 'rgba(255,255,255,0.25)' : C.border}`,
-        borderRadius: 6,
-        padding: selected ? '7px 9px' : '8px 10px',
-        cursor: 'pointer',
-        transition: 'border-color 0.15s, background 0.15s',
-        minHeight: 48,
-        display: 'flex',
-        alignItems: 'center',
-      }}
-    >
-      <span style={{
-        fontFamily: C.mono,
-        fontSize: 11,
-        color: selected ? C.accent : C.textMuted,
-        wordBreak: 'break-all',
-        lineHeight: 1.4,
-      }}>
-        {label}
-      </span>
-    </div>
-  )
-}
 
 function ParamInput({ param, value, onChange }: {
   param: GuiParameter
@@ -393,33 +363,13 @@ export default function DimensionReduction({
       {/* ── Autoencoder model ── */}
       <SectionLabel>Autoencoder model</SectionLabel>
 
-      {mlflowLoading && (
-        <div style={{ fontFamily: C.mono, fontSize: 12, color: C.textDim, marginBottom: 12 }}>Loading…</div>
-      )}
-      {!mlflowLoading && mlflowModels.length === 0 && (
-        <div style={{
-          fontFamily: C.mono, fontSize: 11, color: C.textDim,
-          background: C.bg3, border: `1px solid ${C.border}`,
-          borderRadius: 6, padding: '10px 12px', marginBottom: 12, textAlign: 'center',
-        }}>
-          No MLflow models available
-        </div>
-      )}
-      {mlflowModels.length > 0 && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 14 }}>
-          {mlflowModels.map(model => {
-            const id = model.value ?? model.label
-            return (
-              <ModelCard
-                key={id}
-                label={model.label}
-                selected={mlflowModelId === model.value}
-                onClick={() => setMlflowModelId(mlflowModelId === model.value ? null : (model.value ?? null))}
-              />
-            )
-          })}
-        </div>
-      )}
+      <MlflowModelSelect
+        options={mlflowModels}
+        value={mlflowModelId}
+        onChange={setMlflowModelId}
+        loading={mlflowLoading}
+        variant="dark"
+      />
 
       {/* ── Dimension reduction ── */}
       <SectionLabel>Dimension reduction</SectionLabel>

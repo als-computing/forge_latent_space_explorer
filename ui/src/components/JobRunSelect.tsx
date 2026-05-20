@@ -28,12 +28,21 @@ function metaString(opt: FlowRunOption): string {
     .join(' · ')
 }
 
+function matchesSearch(opt: FlowRunOption, query: string): boolean {
+  const q = query.toLowerCase()
+  return [opt.project_name, opt.label, opt.algorithm, opt.autoencoder_model, opt.date, opt.value]
+    .filter(Boolean)
+    .some(s => s.toLowerCase().includes(q))
+}
+
 export default function JobRunSelect({ label, tags, value, onChange }: Props) {
   const [options, setOptions] = useState<FlowRunOption[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [open, setOpen] = useState(false)
+  const [search, setSearch] = useState('')
   const containerRef = useRef<HTMLDivElement>(null)
+  const searchRef = useRef<HTMLInputElement>(null)
 
   async function load() {
     setLoading(true)
@@ -53,11 +62,19 @@ export default function JobRunSelect({ label, tags, value, onChange }: Props) {
     function handleOutsideClick(e: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setOpen(false)
+        setSearch('')
       }
     }
     document.addEventListener('mousedown', handleOutsideClick)
     return () => document.removeEventListener('mousedown', handleOutsideClick)
   }, [])
+
+  useEffect(() => {
+    if (open) {
+      setSearch('')
+      setTimeout(() => searchRef.current?.focus(), 0)
+    }
+  }, [open])
 
   const selected = options.find(o => o.value === value) ?? null
 
@@ -171,14 +188,35 @@ export default function JobRunSelect({ label, tags, value, onChange }: Props) {
           border: `1px solid ${C.border}`,
           borderRadius: 5,
           zIndex: 200,
-          maxHeight: 260,
-          overflowY: 'auto',
           boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+          display: 'flex',
+          flexDirection: 'column',
         }}>
+          <div style={{ padding: '6px 8px', borderBottom: `1px solid ${C.border}` }}>
+            <input
+              ref={searchRef}
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search…"
+              style={{
+                width: '100%',
+                background: C.bg2,
+                border: `1px solid ${C.border}`,
+                borderRadius: 3,
+                padding: '4px 8px',
+                fontFamily: C.mono,
+                fontSize: 12,
+                color: C.text,
+                outline: 'none',
+                boxSizing: 'border-box',
+              }}
+            />
+          </div>
+          <div style={{ maxHeight: 220, overflowY: 'auto' }}>
           {/* Clear selection */}
           {value && (
             <div
-              onClick={() => { onChange(null); setOpen(false) }}
+              onClick={() => { onChange(null); setOpen(false); setSearch('') }}
               style={{
                 padding: '7px 10px',
                 borderBottom: `1px solid ${C.border}`,
@@ -193,7 +231,7 @@ export default function JobRunSelect({ label, tags, value, onChange }: Props) {
               — Clear selection —
             </div>
           )}
-          {options.map(opt => {
+          {options.filter(opt => matchesSearch(opt, search)).map(opt => {
             const isSelected = opt.value === value
             return (
               <div
@@ -238,6 +276,7 @@ export default function JobRunSelect({ label, tags, value, onChange }: Props) {
               </div>
             )
           })}
+          </div>
         </div>
       )}
     </div>

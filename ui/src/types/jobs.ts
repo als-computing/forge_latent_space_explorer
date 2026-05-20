@@ -3,6 +3,8 @@ import type { DataProjectDict } from './data'
 export interface MlflowModelOption {
   label: string
   value: string | null
+  algorithm: string
+  date: string
 }
 
 export interface LatentSpaceJobRequest {
