@@ -46,6 +46,7 @@ class FlowRunOption(BaseModel):
     algorithm: str = ''
     autoencoder_model: str = ''
     date: str = ''
+    state: str = ''
 
 
 class JobStatusResponse(BaseModel):

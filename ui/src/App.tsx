@@ -7,6 +7,7 @@ import type { SessionConfig } from './components/SessionModal'
 import ExplorePage from './pages/ExplorePage'
 import LivePage from './pages/LivePage'
 import ReplayPage from './pages/ReplayPage'
+import RunPage from './pages/RunPage'
 import { useJobStatus } from './hooks/useJobStatus'
 import { fetchMasks } from './api/data'
 import { deriveProjectName } from './utils/projectName'
@@ -102,6 +103,7 @@ function App() {
         />
         <Route path="/live" element={<LivePage />} />
         <Route path="/replay" element={<ReplayPage />} />
+        <Route path="/run" element={<RunPage />} />
       </Routes>
     </>
   )

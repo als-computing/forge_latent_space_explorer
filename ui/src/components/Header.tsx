@@ -9,6 +9,7 @@ const TABS = [
   { label: 'Explore', to: '/explore' },
   { label: 'Live', to: '/live' },
   { label: 'Replay', to: '/replay' },
+  { label: 'Run', to: '/run' },
 ]
 
 const iconButtonStyle: React.CSSProperties = {

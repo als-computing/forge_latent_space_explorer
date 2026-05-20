@@ -43,6 +43,7 @@ export interface FlowRunOption {
   algorithm: string
   autoencoder_model: string
   date: string
+  state: string
 }
 
 export interface JobStatusResponse {

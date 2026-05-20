@@ -23,6 +23,7 @@ interface Props {
   onDataProjectDictChange?: (dict: DataProjectDict) => void
   onModelInfoChange?: (autoencoderLabel: string | null, dimRedName: string | null) => void
   clearCount?: number
+  hideHistory?: boolean
 }
 
 const C = {
@@ -174,6 +175,7 @@ export default function DimensionReduction({
   onDataProjectDictChange,
   onModelInfoChange,
   clearCount = 0,
+  hideHistory = false,
 }: Props) {
   // MLflow models
   const [mlflowModels, setMlflowModels] = useState<MlflowModelOption[]>([])
@@ -478,6 +480,7 @@ export default function DimensionReduction({
         </div>
       )}
 
+      {!hideHistory && (<>
       {divider}
 
       {/* ── Past jobs ── */}
@@ -548,6 +551,7 @@ export default function DimensionReduction({
       {showLogs && effectiveJobId && (
         <LogsModal jobId={effectiveJobId} onClose={() => setShowLogs(false)} />
       )}
+      </>)}
     </div>
   )
 }

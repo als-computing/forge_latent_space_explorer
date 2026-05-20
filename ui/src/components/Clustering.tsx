@@ -20,6 +20,7 @@ interface Props {
   onHideClusters: () => void
   onDataProjectDictChange?: (dict: DataProjectDict) => void
   clearCount?: number
+  hideHistory?: boolean
 }
 
 const C = {
@@ -116,6 +117,7 @@ export default function Clustering({
   onHideClusters,
   onDataProjectDictChange,
   clearCount = 0,
+  hideHistory = false,
 }: Props) {
   const [models, setModels] = useState<Model[]>([])
   const [selectedModel, setSelectedModel] = useState<Model | null>(null)
@@ -346,7 +348,7 @@ export default function Clustering({
       {/* ── Run button (outlined / secondary style) ── */}
       <RunButton canSubmit={canSubmit} submitting={submitting} onClick={handleSubmit} />
 
-      {!selectedLatentJobId && (
+      {!selectedLatentJobId && !hideHistory && (
         <div style={{ fontFamily: C.mono, fontSize: 11, color: C.textDim, marginTop: 6 }}>
           Select a Dimension Reduction job above.
         </div>
@@ -360,6 +362,7 @@ export default function Clustering({
         </div>
       )}
 
+      {!hideHistory && (<>
       {divider}
 
       {/* ── Past jobs ── */}
@@ -391,6 +394,7 @@ export default function Clustering({
           View Logs
         </button>
       </div>
+      </>)}
 
       {/* ── Status block ── */}
       {activeJobId && status && (
@@ -455,35 +459,36 @@ export default function Clustering({
         </div>
       )}
 
-      {/* ── Show Clusters toggle ── */}
-      <div
-        onClick={() => { if (isReady) handleToggleClusters(!showClusters) }}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginTop: 4,
-          opacity: isReady ? 1 : 0.4,
-          cursor: isReady ? 'pointer' : 'default',
-        }}
-      >
-        <span style={{ fontFamily: C.mono, fontSize: 12, color: C.textMuted }}>Show Clusters</span>
-        <div style={{
-          width: 28, height: 16,
-          background: showClusters ? C.accent : 'rgba(0,0,0,0.2)',
-          border: `1px solid ${showClusters ? C.accent : C.border}`,
-          borderRadius: 8,
-          position: 'relative',
-          transition: 'background 0.2s, border-color 0.2s',
-          flexShrink: 0,
-        }}>
+      {!hideHistory && (
+        <div
+          onClick={() => { if (isReady) handleToggleClusters(!showClusters) }}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginTop: 4,
+            opacity: isReady ? 1 : 0.4,
+            cursor: isReady ? 'pointer' : 'default',
+          }}
+        >
+          <span style={{ fontFamily: C.mono, fontSize: 12, color: C.textMuted }}>Show Clusters</span>
           <div style={{
-            position: 'absolute', top: 2, left: showClusters ? 14 : 2,
-            width: 10, height: 10, borderRadius: '50%', background: '#fff',
-            transition: 'left 0.2s',
-          }} />
+            width: 28, height: 16,
+            background: showClusters ? C.accent : 'rgba(0,0,0,0.2)',
+            border: `1px solid ${showClusters ? C.accent : C.border}`,
+            borderRadius: 8,
+            position: 'relative',
+            transition: 'background 0.2s, border-color 0.2s',
+            flexShrink: 0,
+          }}>
+            <div style={{
+              position: 'absolute', top: 2, left: showClusters ? 14 : 2,
+              width: 10, height: 10, borderRadius: '50%', background: '#fff',
+              transition: 'left 0.2s',
+            }} />
+          </div>
         </div>
-      </div>
+      )}
 
       {showLogs && activeJobId && (
         <LogsModal jobId={activeJobId} onClose={() => setShowLogs(false)} />

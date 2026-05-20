@@ -113,6 +113,7 @@ def _build_flow_run_option(flow_run, mlflow_label_by_id: dict[str, str]) -> Flow
         algorithm=algorithm,
         autoencoder_model=autoencoder_model,
         date=date,
+        state=flow_run.state_name or '',
     )
 
 
