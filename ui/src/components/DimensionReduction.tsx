@@ -188,7 +188,6 @@ export default function DimensionReduction({
   const [dimRedParams, setDimRedParams] = useState<ParameterValues>({})
 
   // Job submission
-  const [jobName] = useState('latent-space-job')
   const [localProjectName, setLocalProjectName] = useState('')
   const [activeProjectName, setActiveProjectName] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -311,7 +310,7 @@ export default function DimensionReduction({
         log_transform: logTransform,
         percentiles,
         mask: mask !== 'None' ? mask : null,
-        job_name: jobName,
+        job_name: effectiveProjectName,
         project_name: effectiveProjectName,
         mlflow_model_id: mlflowModelId,
       })

@@ -5,7 +5,7 @@ import os
 import traceback
 import uuid
 from datetime import datetime
-from urllib.parse import urljoin
+from urllib.parse import quote, urljoin
 from zoneinfo import ZoneInfo
 
 from tiled.client import from_uri as tiled_from_uri
@@ -48,6 +48,11 @@ _SYSTEM_TAGS = (
     set(json.loads(os.getenv("PREFECT_TAGS", '["latent-space-explorer"]')))
     | {"latent-space", "clustering"}
 )
+
+
+def _sanitize_project_name(name: str) -> str:
+    """Replace characters that are invalid in Tiled container keys."""
+    return name.replace("/", "-")
 
 
 def _resolve_project_name(job_id: str, project_name: str) -> str:
@@ -159,7 +164,7 @@ def get_latent_space_job_status(job_id: str, project_name: str = "") -> JobStatu
     if state_str != "COMPLETED":
         return JobStatusResponse(ready=False, state=state_str)
 
-    project_name = _resolve_project_name(job_id, project_name)
+    project_name = _sanitize_project_name(_resolve_project_name(job_id, project_name))
     result_uri = f"{USER}/{project_name}/{child_id}"
     ready = _result_exists_in_tiled(result_uri)
     return JobStatusResponse(ready=ready, state=state_str, result_uri=result_uri if ready else None)
@@ -182,7 +187,7 @@ def get_clustering_job_status(job_id: str, project_name: str = "") -> JobStatusR
     if state_str != "COMPLETED":
         return JobStatusResponse(ready=False, state=state_str)
 
-    project_name = _resolve_project_name(job_id, project_name)
+    project_name = _sanitize_project_name(_resolve_project_name(job_id, project_name))
     result_uri = f"{USER}/{project_name}/{child_id}"
     ready = _result_exists_in_tiled(result_uri)
     return JobStatusResponse(ready=ready, state=state_str, result_uri=result_uri if ready else None)
@@ -238,9 +243,11 @@ def get_mlflow_models() -> list[MlflowModelOption]:
 
 def _results_tiled_url(user: str, project_name: str) -> str:
     base = "/api/v1/metadata"
+    encoded_user = quote(user, safe="")
+    encoded_project = quote(project_name, safe="")
     if base not in RESULTS_TILED_URI:
-        return urljoin(RESULTS_TILED_URI, os.path.join(base, user, project_name))
-    return urljoin(RESULTS_TILED_URI, f"/{user}/{project_name}")
+        return urljoin(RESULTS_TILED_URI, f"{base}/{encoded_user}/{encoded_project}")
+    return urljoin(RESULTS_TILED_URI, f"/{encoded_user}/{encoded_project}")
 
 
 def submit_latent_space_job(req: LatentSpaceJobRequest) -> JobSubmitResponse:
@@ -253,6 +260,7 @@ def submit_latent_space_job(req: LatentSpaceJobRequest) -> JobSubmitResponse:
         )
     data_type = req.data_project_dict["data_type"]
     root_uri = req.data_project_dict["root_uri"]
+    project_name = _sanitize_project_name(req.project_name)
 
     results_dir = f"{WRITE_DIR}/{USER}"
 
@@ -262,7 +270,7 @@ def submit_latent_space_job(req: LatentSpaceJobRequest) -> JobSubmitResponse:
         "data_type": data_type,
         "root_uri": root_uri,
         "models_dir": f"{results_dir}/models",
-        "results_tiled_uri": _results_tiled_url(USER, req.project_name),
+        "results_tiled_uri": _results_tiled_url(USER, project_name),
         "results_dir": results_dir,
         "mlflow_uri": MLFLOW_TRACKING_URI,
         "mlflow_model": req.mlflow_model_id,
@@ -301,13 +309,13 @@ def submit_latent_space_job(req: LatentSpaceJobRequest) -> JobSubmitResponse:
         )
 
     try:
-        _prepare_project_container(USER, req.project_name)
-        current_time = datetime.now(ZoneInfo(TIMEZONE)).strftime("%Y/%m/%d %H:%M:%S")
+        _prepare_project_container(USER, project_name)
+        current_time = datetime.now(ZoneInfo(TIMEZONE)).strftime("%Y-%m-%d %H:%M:%S")
         job_uid = str(schedule_prefect_flow(
             FLOW_NAME,
             parameters=job_params,
             flow_run_name=f"{req.job_name} {current_time}",
-            tags=PREFECT_TAGS + [req.project_name, "latent-space"],
+            tags=PREFECT_TAGS + [project_name, "latent-space"],
         ))
         return JobSubmitResponse(
             job_uid=job_uid,
@@ -320,11 +328,13 @@ def submit_latent_space_job(req: LatentSpaceJobRequest) -> JobSubmitResponse:
 
 
 def submit_clustering_job(req: ClusteringJobRequest) -> JobSubmitResponse:
-    project_name = _resolve_project_name(req.dimension_reduction_job_id, req.project_name)
+    project_name = _sanitize_project_name(
+        _resolve_project_name(req.dimension_reduction_job_id, req.project_name)
+    )
     children_job_ids = get_children_flow_run_ids(req.dimension_reduction_job_id)
     child_job_id = children_job_ids[1]
 
-    expected_uri = f"/{USER}/{project_name}/{child_job_id}"
+    expected_uri = f"{USER}/{project_name}/{child_job_id}"
     data_uris = [expected_uri]
     results_dir = f"{WRITE_DIR}/{USER}"
 
@@ -365,7 +375,7 @@ def submit_clustering_job(req: ClusteringJobRequest) -> JobSubmitResponse:
 
     try:
         _prepare_project_container(USER, project_name)
-        current_time = datetime.now(ZoneInfo(TIMEZONE)).strftime("%Y/%m/%d %H:%M:%S")
+        current_time = datetime.now(ZoneInfo(TIMEZONE)).strftime("%Y-%m-%d %H:%M:%S")
         dim_red_name = get_flow_run_name(req.dimension_reduction_job_id)
         job_uid = str(schedule_prefect_flow(
             FLOW_NAME,

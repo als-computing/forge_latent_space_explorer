@@ -205,7 +205,7 @@ def run_latent_space(
                 tiled_results.prepare_project_container(USER, project_name)
                 # Schedule job
                 current_time = datetime.now(pytz.timezone(TIMEZONE)).strftime(
-                    "%Y/%m/%d %H:%M:%S"
+                    "%Y-%m-%d %H:%M:%S"
                 )
                 job_uid = schedule_prefect_flow(
                     FLOW_NAME,
@@ -446,7 +446,7 @@ def run_clustering(
         children_job_ids = get_children_flow_run_ids(dimension_reduction_job_id)
         child_job_id = children_job_ids[1]
 
-        expected_result_uri = f"/{USER}/{project_name}/{child_job_id}"
+        expected_result_uri = f"{USER}/{project_name}/{child_job_id}"
         data_project_fvec = DataProject.from_dict(
             {
                 "root_uri": tiled_results.data_tiled_uri,
@@ -478,7 +478,7 @@ def run_clustering(
                 tiled_results.prepare_project_container(USER, project_name)
                 # Schedule job
                 current_time = datetime.now(pytz.timezone(TIMEZONE)).strftime(
-                    "%Y/%m/%d %H:%M:%S"
+                    "%Y-%m-%d %H:%M:%S"
                 )
                 dimension_reduction_name = get_flow_run_name(dimension_reduction_job_id)
                 job_uid = schedule_prefect_flow(
