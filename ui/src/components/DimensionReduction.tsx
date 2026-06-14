@@ -24,6 +24,7 @@ interface Props {
   onModelInfoChange?: (autoencoderLabel: string | null, dimRedName: string | null) => void
   clearCount?: number
   hideHistory?: boolean
+  historyOnly?: boolean
 }
 
 const C = {
@@ -176,6 +177,7 @@ export default function DimensionReduction({
   onModelInfoChange,
   clearCount = 0,
   hideHistory = false,
+  historyOnly = false,
 }: Props) {
   // MLflow models
   const [mlflowModels, setMlflowModels] = useState<MlflowModelOption[]>([])
@@ -278,6 +280,7 @@ export default function DimensionReduction({
     onJobSubmitted(jobId)
     setResult(null)
     setShowFV(false)
+    autoShowRef.current = true
     if (onDataProjectDictChange) {
       try {
         const dict = await fetchDataProjectDictFromJob(jobId)
@@ -356,6 +359,54 @@ export default function DimensionReduction({
     color: C.textDim,
     marginBottom: 4,
     display: 'block',
+  }
+
+  if (historyOnly) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8 }}>
+          <div style={{ flex: 1 }}>
+            <JobRunSelect
+              label="Past Jobs"
+              tags={['latent-space-explorer', 'latent-space']}
+              value={effectiveJobId}
+              onChange={handleSelectPastJob}
+            />
+          </div>
+          <button
+            onClick={() => setShowLogs(true)}
+            disabled={!effectiveJobId}
+            style={{
+              marginBottom: 12,
+              padding: '5px 10px',
+              background: effectiveJobId ? 'rgba(255,255,255,0.08)' : 'transparent',
+              border: `1px solid ${effectiveJobId ? C.border : 'rgba(255,255,255,0.08)'}`,
+              borderRadius: 4,
+              color: effectiveJobId ? C.textMuted : C.textDim,
+              fontFamily: C.mono,
+              fontSize: 11,
+              cursor: effectiveJobId ? 'pointer' : 'default',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            View Logs
+          </button>
+        </div>
+
+        {effectiveJobId && status && (
+          <JobStatusBlock
+            ready={status.ready}
+            failed={status.state === 'FAILED' || status.state === 'CRASHED'}
+            elapsedSec={elapsedSec}
+            jobId={effectiveJobId}
+          />
+        )}
+
+        {showLogs && effectiveJobId && (
+          <LogsModal jobId={effectiveJobId} onClose={() => setShowLogs(false)} />
+        )}
+      </div>
+    )
   }
 
   return (

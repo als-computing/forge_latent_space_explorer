@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import DataOverview from '../components/DataOverview'
 import Sidebar from '../components/Sidebar'
 import VisualizationPanel from '../components/VisualizationPanel'
 import type { SessionConfig } from '../components/SessionModal'
@@ -9,18 +8,14 @@ interface Props {
   dataProjectDict: DataProjectDict | null
   sessionConfig: SessionConfig | null
   projectName: string
-  masks: string[]
   logTransform: boolean
-  onLogTransformChange: (v: boolean) => void
   percentiles: [number, number]
-  onPercentilesChange: (v: [number, number]) => void
   mask: string
-  onMaskChange: (v: string) => void
   onDataProjectDictChange?: (dict: DataProjectDict) => void
   clearCount?: number
 }
 
-function ExplorePage({ dataProjectDict, sessionConfig, projectName, masks, logTransform, onLogTransformChange, percentiles, onPercentilesChange, mask, onMaskChange, onDataProjectDictChange, clearCount = 0 }: Props) {
+function ExplorePage({ dataProjectDict, sessionConfig, projectName, logTransform, percentiles, mask, onDataProjectDictChange, clearCount = 0 }: Props) {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [latentSpaceJobId, setLatentSpaceJobId] = useState<string | null>(null)
   const [clusteringJobId, setClusteringJobId] = useState<string | null>(null)
@@ -48,11 +43,8 @@ function ExplorePage({ dataProjectDict, sessionConfig, projectName, masks, logTr
         dataProjectDict={dataProjectDict}
         projectName={projectName}
         logTransform={logTransform}
-        onLogTransformChange={onLogTransformChange}
         percentiles={percentiles}
-        onPercentilesChange={onPercentilesChange}
         mask={mask}
-        onMaskChange={onMaskChange}
         latentSpaceJobId={latentSpaceJobId}
         onLatentSpaceJobSubmitted={setLatentSpaceJobId}
         onDataProjectDictChange={onDataProjectDictChange}
@@ -63,7 +55,6 @@ function ExplorePage({ dataProjectDict, sessionConfig, projectName, masks, logTr
         onShowClusters={() => setShowClustersTrigger(n => n + 1)}
         onHideClusters={() => setShowClustersTrigger(0)}
         onModelInfoChange={(ae, dr) => { setAutoencoderLabel(ae); setDimRedLabel(dr) }}
-        masks={masks}
         isOpen={sidebarOpen}
         onToggle={() => setSidebarOpen(o => !o)}
       />
@@ -77,11 +68,6 @@ function ExplorePage({ dataProjectDict, sessionConfig, projectName, masks, logTr
         padding: 10,
         boxSizing: 'border-box',
       }}>
-        <DataOverview
-          dataProjectDict={dataProjectDict}
-          logTransform={logTransform}
-          percentiles={percentiles}
-        />
         <VisualizationPanel
           latentSpaceJobId={latentSpaceJobId}
           clusteringJobId={clusteringJobId}
@@ -91,7 +77,6 @@ function ExplorePage({ dataProjectDict, sessionConfig, projectName, masks, logTr
           percentiles={percentiles}
           showFVTrigger={showFVTrigger}
           showClustersTrigger={showClustersTrigger}
-          hasDataOverview={!!dataProjectDict?.datasets?.length}
           autoencoderLabel={autoencoderLabel}
           dimRedLabel={dimRedLabel}
 

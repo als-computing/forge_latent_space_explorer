@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Eraser, LassoSelect, SquareDashedMousePointer } from 'lucide-react'
-import { fetchClusters, fetchFeatureVectors, fetchHeatmap, fetchOverview } from '../api/data'
+import { fetchClusters, fetchDataProjectDictFromJob, fetchFeatureVectors, fetchHeatmap, fetchOverview } from '../api/data'
 import type { ClusterResponse, DataProjectDict, FeatureVectorResponse, HeatmapResponse } from '../types/data'
 import Heatmap from './Heatmap'
 import ScatterPlot from './ScatterPlot'
@@ -14,7 +14,6 @@ interface Props {
   percentiles?: [number, number]
   showFVTrigger?: number
   showClustersTrigger?: number
-  hasDataOverview?: boolean
   autoencoderLabel?: string | null
   dimRedLabel?: string | null
 }
@@ -50,7 +49,6 @@ export default function VisualizationPanel({
   percentiles = [0, 100],
   showFVTrigger = 0,
   showClustersTrigger = 0,
-  hasDataOverview = false,
   autoencoderLabel = null,
   dimRedLabel = null,
 }: Props) {
@@ -70,7 +68,6 @@ export default function VisualizationPanel({
   const scrollZoomTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const displayOptionRef = useRef<'mean' | 'std'>(displayOption)
   displayOptionRef.current = displayOption
-  console.log("heatmapresult", heatmapResult)
 
   async function handleShowFeatureVectors() {
     if (!latentSpaceJobId) return
@@ -89,12 +86,12 @@ export default function VisualizationPanel({
   useEffect(() => {
     if (showFVTrigger > 0) handleShowFeatureVectors()
     else setScatterData(null)
-  }, [showFVTrigger, latentSpaceJobId, projectName])  // eslint-disable-line react-hooks/exhaustive-deps
+  }, [showFVTrigger, latentSpaceJobId])  // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (showClustersTrigger > 0) handleShowClusters()
     else setScatterData(null)
-  }, [showClustersTrigger, latentSpaceJobId, clusteringJobId, projectName])  // eslint-disable-line react-hooks/exhaustive-deps
+  }, [showClustersTrigger, latentSpaceJobId, clusteringJobId])  // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleShowClusters() {
     if (!clusteringJobId) return
@@ -170,14 +167,25 @@ export default function VisualizationPanel({
   }, [])
 
   const handleSelect = useCallback(async (indices: number[]) => {
+    console.log("handle select", indices)
     setSelectedIndices(indices)
-    if (!dataProjectDict || indices.length === 0) return
+    if (indices.length === 0) return
+    let dpd = dataProjectDict
+    if (!dpd && latentSpaceJobId) {
+      try {
+        dpd = await fetchDataProjectDictFromJob(latentSpaceJobId)
+      } catch {
+        return
+      }
+    }
+    console.log("dpd", dpd)
+    if (!dpd) return
     setHeatmapError(null)
     setHeatmapLoading(true)
     try {
       setHeatmapResult(
         await fetchHeatmap({
-          data_project_dict: dataProjectDict,
+          data_project_dict: dpd,
           selected_indices: indices,
           log_transform: logTransform,
           percentiles,
@@ -189,7 +197,7 @@ export default function VisualizationPanel({
     } finally {
       setHeatmapLoading(false)
     }
-  }, [dataProjectDict, logTransform, percentiles])
+  }, [dataProjectDict, latentSpaceJobId, logTransform, percentiles])
 
   async function handleDisplayChange(v: 'mean' | 'std') {
     setDisplayOption(v)
@@ -218,84 +226,122 @@ export default function VisualizationPanel({
     ?? dataProjectDict?.datasets[0]?.uri?.split('/').filter(Boolean).pop()
     ?? null
 
+  const cardStyle: React.CSSProperties = {
+    border: `1px solid ${C.border}`,
+    borderRadius: '0.375rem',
+    backgroundColor: C.bg,
+    display: 'flex',
+    flexDirection: 'column',
+    minHeight: 0,
+  }
+
   return (
-    <div style={{
-      border: `1px solid ${C.border}`,
-      borderRadius: '0.375rem',
-      backgroundColor: C.bg,
-      flex: 1,
-      minHeight: 0,
-      display: 'flex',
-      flexDirection: 'column',
-      marginTop: hasDataOverview ? 10 : 0,
-    }}>
-      {/* Header */}
-      <div style={{
-        height: 34,
-        display: 'flex',
-        alignItems: 'center',
-        padding: '0 12px',
-        borderBottom: `1px solid ${C.border}`,
-        gap: 8,
-        flexShrink: 0,
-      }}>
-        <span style={{ fontFamily: C.mono, fontSize: 10, fontWeight: 500, letterSpacing: '.1em', textTransform: 'uppercase', color: C.textMuted }}>
-          Latent Space
-        </span>
-        {totalPoints > 0 && (
-          <span style={{ fontFamily: C.mono, fontSize: 10, color: C.textDim, background: 'rgba(0,0,0,0.2)', padding: '2px 6px', borderRadius: 3 }}>
-            {totalPoints.toLocaleString()} pts
-          </span>
-        )}
-        {selectedIndices.length > 0 && (
-          <span style={{ fontFamily: C.mono, fontSize: 10, color: C.accent, background: 'rgba(79,142,247,0.12)', padding: '2px 6px', borderRadius: 3 }}>
-            {selectedIndices.length.toLocaleString()} selected
-          </span>
-        )}
+    <div style={{ display: 'flex', flex: 1, minHeight: 0, gap: 10 }}>
 
-        {/* Right-side toolbar */}
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
-          <button
-            onClick={() => { setClearCount(c => c + 1); handleDeselect() }}
-            title="Clear selection"
-            style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              padding: 5, background: 'rgba(255,255,255,0.06)',
-              border: `1px solid ${C.border}`, color: C.textMuted,
-              borderRadius: 4, cursor: 'pointer',
-            }}
-          >
-            <Eraser size={13} />
-          </button>
-          <div style={{ width: 1, height: 14, background: C.border }} />
-          <button onClick={() => handleDisplayChange('mean')} style={{ ...toggleBtnStyle(displayOption === 'mean'), borderRadius: '4px 0 0 4px' }}>
-            Mean
-          </button>
-          <button onClick={() => handleDisplayChange('std')} style={{ ...toggleBtnStyle(displayOption === 'std'), borderRadius: '0 4px 4px 0', borderLeft: 'none' }}>
-            Std Dev
-          </button>
+      {/* ── Latent Space panel ── */}
+      <div style={{ ...cardStyle, flex: 1 }}>
+        {/* Header */}
+        <div style={{
+          height: 34, display: 'flex', alignItems: 'center',
+          padding: '0 12px', borderBottom: `1px solid ${C.border}`, gap: 8, flexShrink: 0,
+        }}>
+          <span style={{ fontFamily: C.mono, fontSize: 10, fontWeight: 500, letterSpacing: '.1em', textTransform: 'uppercase', color: C.textMuted }}>
+            Latent Space
+          </span>
+          {totalPoints > 0 && (
+            <span style={{ fontFamily: C.mono, fontSize: 10, color: C.textDim, background: 'rgba(0,0,0,0.2)', padding: '2px 6px', borderRadius: 3 }}>
+              {totalPoints.toLocaleString()} pts
+            </span>
+          )}
+          {selectedIndices.length > 0 && (
+            <span style={{ fontFamily: C.mono, fontSize: 10, color: C.accent, background: 'rgba(79,142,247,0.12)', padding: '2px 6px', borderRadius: 3 }}>
+              {selectedIndices.length.toLocaleString()} selected
+            </span>
+          )}
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <button
+              onClick={() => { setClearCount(c => c + 1); handleDeselect() }}
+              title="Clear selection"
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                padding: 5, background: 'rgba(255,255,255,0.06)',
+                border: `1px solid ${C.border}`, color: C.textMuted,
+                borderRadius: 4, cursor: 'pointer',
+              }}
+            >
+              <Eraser size={13} />
+            </button>
+          </div>
         </div>
-      </div>
 
-      {/* Selection hint */}
-      <div style={{ padding: '4px 12px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6, borderBottom: `1px solid ${C.border}` }}>
-        <span style={{ fontFamily: C.mono, fontSize: 10, color: C.textDim }}>
-          Select points using
-        </span>
-        <LassoSelect size={12} color={C.textDim} />
-        <span style={{ fontFamily: C.mono, fontSize: 10, color: C.textDim }}>or</span>
-        <SquareDashedMousePointer size={12} color={C.textDim} />
-        {scatterError && <span style={{ marginLeft: 8, fontFamily: C.mono, fontSize: 10, color: '#ef4444' }}>{scatterError}</span>}
-        {heatmapLoading && <span style={{ marginLeft: 8, fontFamily: C.mono, fontSize: 10, color: C.textDim }}>Loading heatmap…</span>}
-        {heatmapError && <span style={{ marginLeft: 8, fontFamily: C.mono, fontSize: 10, color: '#ef4444' }}>{heatmapError}</span>}
-      </div>
+        {/* Selection hint */}
+        <div style={{ padding: '4px 12px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6, borderBottom: `1px solid ${C.border}` }}>
+          <span style={{ fontFamily: C.mono, fontSize: 10, color: C.textDim }}>Select points using</span>
+          <LassoSelect size={12} color={C.textDim} />
+          <span style={{ fontFamily: C.mono, fontSize: 10, color: C.textDim }}>or</span>
+          <SquareDashedMousePointer size={12} color={C.textDim} />
+          {scatterError && <span style={{ marginLeft: 8, fontFamily: C.mono, fontSize: 10, color: '#ef4444' }}>{scatterError}</span>}
+        </div>
 
-      {/* Plots */}
-      <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
-        <div style={{ flex: 1, minWidth: 0 }} onMouseLeave={handleUnhover} onWheel={handleWheel}>
+        {/* Scatter plot */}
+        <div style={{ flex: 1, minHeight: 0 }} onMouseLeave={handleUnhover} onWheel={handleWheel}>
           <ScatterPlot data={scatterData} onSelect={handleSelect} onDeselect={handleDeselect} clearCount={clearCount} dataRevision={dataRevision} onHover={handleHover} onUnhover={handleUnhover} />
         </div>
-        <div style={{ flex: 1, minWidth: 0, borderLeft: `1px solid ${C.border}` }}>
+
+        {/* Footer */}
+        <div style={{
+          height: 26, borderTop: `1px solid ${C.border}`,
+          display: 'flex', alignItems: 'center', padding: '0 12px', gap: 14, flexShrink: 0,
+        }}>
+          {datasetName && (
+            <span style={{ fontFamily: C.mono, fontSize: 10, color: C.textDim }}>
+              dataset <span style={{ color: C.textMuted }}>{datasetName}</span>
+            </span>
+          )}
+          {autoencoderLabel && (
+            <span style={{ fontFamily: C.mono, fontSize: 10, color: C.textDim }}>
+              autoencoder <span style={{ color: C.textMuted }}>{autoencoderLabel}</span>
+            </span>
+          )}
+          {dimRedLabel && (
+            <span style={{ fontFamily: C.mono, fontSize: 10, color: C.textDim }}>
+              dim reduction <span style={{ color: C.textMuted }}>{dimRedLabel}</span>
+            </span>
+          )}
+          {!datasetName && !autoencoderLabel && !dimRedLabel && (
+            <span style={{ fontFamily: C.mono, fontSize: 10, color: C.textDim }}>no session active</span>
+          )}
+        </div>
+      </div>
+
+      {/* ── Selected Heatmap panel ── */}
+      <div style={{ ...cardStyle, flex: 1 }}>
+        {/* Header */}
+        <div style={{
+          height: 34, display: 'flex', alignItems: 'center',
+          padding: '0 12px', borderBottom: `1px solid ${C.border}`, gap: 8, flexShrink: 0,
+        }}>
+          <span style={{ fontFamily: C.mono, fontSize: 10, fontWeight: 500, letterSpacing: '.1em', textTransform: 'uppercase', color: C.textMuted }}>
+            Selected Heatmap
+          </span>
+          {heatmapLoading && (
+            <span style={{ fontFamily: C.mono, fontSize: 10, color: C.textDim }}>loading…</span>
+          )}
+          {heatmapError && (
+            <span style={{ fontFamily: C.mono, fontSize: 10, color: '#ef4444' }}>{heatmapError}</span>
+          )}
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 0 }}>
+            <button onClick={() => handleDisplayChange('mean')} style={{ ...toggleBtnStyle(displayOption === 'mean'), borderRadius: '4px 0 0 4px' }}>
+              Mean
+            </button>
+            <button onClick={() => handleDisplayChange('std')} style={{ ...toggleBtnStyle(displayOption === 'std'), borderRadius: '0 4px 4px 0', borderLeft: 'none' }}>
+              Std Dev
+            </button>
+          </div>
+        </div>
+
+        {/* Heatmap */}
+        <div style={{ flex: 1, minHeight: 0 }}>
           <Heatmap result={heatmapResult} />
         </div>
       </div>
@@ -317,49 +363,14 @@ export default function VisualizationPanel({
         }}>
           <img src={tooltip.src} alt="" style={{ width: '100%', display: 'block', borderRadius: 3 }} />
           <span style={{
-            display: 'block',
-            marginTop: 5,
-            fontFamily: C.mono,
-            fontSize: 10,
-            color: C.textMuted,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
+            display: 'block', marginTop: 5,
+            fontFamily: C.mono, fontSize: 10, color: C.textMuted,
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           }}>
             {tooltip.name}
           </span>
         </div>
       )}
-
-      {/* Footer */}
-      <div style={{
-        height: 26,
-        borderTop: `1px solid ${C.border}`,
-        display: 'flex',
-        alignItems: 'center',
-        padding: '0 12px',
-        gap: 14,
-        flexShrink: 0,
-      }}>
-        {datasetName && (
-          <span style={{ fontFamily: C.mono, fontSize: 10, color: C.textDim }}>
-            dataset <span style={{ color: C.textMuted }}>{datasetName}</span>
-          </span>
-        )}
-        {autoencoderLabel && (
-          <span style={{ fontFamily: C.mono, fontSize: 10, color: C.textDim }}>
-            autoencoder <span style={{ color: C.textMuted }}>{autoencoderLabel}</span>
-          </span>
-        )}
-        {dimRedLabel && (
-          <span style={{ fontFamily: C.mono, fontSize: 10, color: C.textDim }}>
-            dim reduction <span style={{ color: C.textMuted }}>{dimRedLabel}</span>
-          </span>
-        )}
-        {!datasetName && !autoencoderLabel && !dimRedLabel && (
-          <span style={{ fontFamily: C.mono, fontSize: 10, color: C.textDim }}>no session active</span>
-        )}
-      </div>
     </div>
   )
 }

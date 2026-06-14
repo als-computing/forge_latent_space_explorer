@@ -20,9 +20,22 @@ const BASE_LAYOUT: Partial<Plotly.Layout> = {
 }
 
 export default function Heatmap({ result }: Props) {
-  const traces: Plotly.Data[] = result
-    ? [{ type: 'heatmap', z: result.data, colorscale: 'Greys' } as Plotly.Data]
-    : [{ type: 'heatmap', z: [] } as Plotly.Data]
+  if (!result) {
+    return (
+      <div style={{
+        width: '100%', height: '100%',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        backgroundColor: DARK,
+        fontFamily: "'IBM Plex Mono', monospace",
+        fontSize: 11,
+        color: 'rgba(255,255,255,0.35)',
+      }}>
+        Select points to view heatmap
+      </div>
+    )
+  }
+
+  const traces: Plotly.Data[] = [{ type: 'heatmap', z: result.data, colorscale: 'Greys' } as Plotly.Data]
 
   return (
     <Plot

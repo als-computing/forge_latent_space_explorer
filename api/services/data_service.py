@@ -173,9 +173,8 @@ def get_feature_vectors(latent_space_job_id: str, project_name: str = "") -> Fea
     project_name = _resolve_project_name(latent_space_job_id, project_name)
     children = get_children_flow_run_ids(latent_space_job_id)
     child_id = children[1]
-    result_uri = f"{USER}/{project_name}/{child_id}"
 
-    node = _navigate(_results_tiled_client(), result_uri)
+    node = _results_tiled_client()[USER][project_name][child_id]
     vectors = node.read().to_numpy()
     n_components = node.metadata["model_parameters"]["n_components"]
 
@@ -189,20 +188,22 @@ def get_clusters(
 ) -> ClusterResponse:
     project_name = _resolve_project_name(clustering_job_id, project_name)
 
+    results = _results_tiled_client()
     if latent_space_job_id:
         dim_red_children = get_children_flow_run_ids(latent_space_job_id)
-        fv_uri = f"{USER}/{project_name}/{dim_red_children[1]}"
+        fv_node = results[USER][project_name][dim_red_children[1]]
     else:
-        fv_uri = _fv_uri_from_clustering_job(clustering_job_id)
+        # fv_uri format: "{user}/{project_name_may_contain_slashes}/{child_id}"
+        # child_id is a UUID (no slashes); project_name is everything between first and last "/"
+        raw = _fv_uri_from_clustering_job(clustering_job_id)
+        parts = raw.strip("/").split("/")
+        fv_node = results[parts[0]]["/".join(parts[1:-1])][parts[-1]]
 
-    cl_children = get_children_flow_run_ids(clustering_job_id)
-    cl_child_id = cl_children[0]
-
-    fv_node = _navigate(_results_tiled_client(), fv_uri)
     vectors = fv_node.read().to_numpy()
     n_components = int(fv_node.metadata["model_parameters"]["n_components"])
 
-    cl_node = _navigate(_results_tiled_client(), f"{USER}/{project_name}/{cl_child_id}")
+    cl_children = get_children_flow_run_ids(clustering_job_id)
+    cl_node = results[USER][project_name][cl_children[0]]
     clusters = cl_node.read()["cluster_label"].tolist()
 
     return ClusterResponse(vectors=vectors.tolist(), n_components=n_components, clusters=clusters)

@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
 import Clustering from './Clustering'
-import DataTransformation from './DataTransformation'
 import DimensionReduction from './DimensionReduction'
 import type { DataProjectDict } from '../types/data'
 
@@ -9,11 +8,8 @@ interface Props {
   dataProjectDict: DataProjectDict | null
   projectName: string
   logTransform: boolean
-  onLogTransformChange: (v: boolean) => void
   percentiles: [number, number]
-  onPercentilesChange: (v: [number, number]) => void
   mask: string
-  onMaskChange: (v: string) => void
   latentSpaceJobId: string | null
   onLatentSpaceJobSubmitted: (jobId: string) => void
   onDataProjectDictChange?: (dict: DataProjectDict) => void
@@ -24,7 +20,6 @@ interface Props {
   onShowClusters: () => void
   onHideClusters: () => void
   onModelInfoChange?: (autoencoderLabel: string | null, dimRedName: string | null) => void
-  masks: string[]
   isOpen: boolean
   onToggle: () => void
 }
@@ -132,9 +127,9 @@ function HandleButton({ isOpen, onToggle }: { isOpen: boolean; onToggle: () => v
 export default function Sidebar({
   dataProjectDict,
   projectName,
-  logTransform, onLogTransformChange,
-  percentiles, onPercentilesChange,
-  mask, onMaskChange,
+  logTransform,
+  percentiles,
+  mask,
   latentSpaceJobId,
   onLatentSpaceJobSubmitted,
   onDataProjectDictChange,
@@ -145,7 +140,6 @@ export default function Sidebar({
   onShowClusters,
   onHideClusters,
   onModelInfoChange,
-  masks,
   isOpen,
   onToggle,
 }: Props) {
@@ -171,17 +165,6 @@ export default function Sidebar({
         }}
       >
         <div style={{ flex: 1 }}>
-          <AccordionItem title="Data transformation">
-            <DataTransformation
-              logTransform={logTransform}
-              onLogTransformChange={onLogTransformChange}
-              percentiles={percentiles}
-              onPercentilesChange={onPercentilesChange}
-              mask={mask}
-              onMaskChange={onMaskChange}
-              masks={masks}
-            />
-          </AccordionItem>
           <AccordionItem title="Dimension Reduction" forceOpen={!!latentSpaceJobId}>
             <DimensionReduction
               dataProjectDict={dataProjectDict}
@@ -196,6 +179,7 @@ export default function Sidebar({
               onDataProjectDictChange={onDataProjectDictChange}
               onModelInfoChange={onModelInfoChange}
               clearCount={clearCount}
+              historyOnly
             />
           </AccordionItem>
           <AccordionItem title="Clustering">
@@ -210,6 +194,7 @@ export default function Sidebar({
               onHideClusters={onHideClusters}
               onDataProjectDictChange={onDataProjectDictChange}
               clearCount={clearCount}
+              historyOnly
             />
           </AccordionItem>
         </div>

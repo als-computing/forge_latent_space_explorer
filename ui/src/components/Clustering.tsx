@@ -21,6 +21,7 @@ interface Props {
   onDataProjectDictChange?: (dict: DataProjectDict) => void
   clearCount?: number
   hideHistory?: boolean
+  historyOnly?: boolean
 }
 
 const C = {
@@ -118,6 +119,7 @@ export default function Clustering({
   onDataProjectDictChange,
   clearCount = 0,
   hideHistory = false,
+  historyOnly = false,
 }: Props) {
   const [models, setModels] = useState<Model[]>([])
   const [selectedModel, setSelectedModel] = useState<Model | null>(null)
@@ -200,14 +202,13 @@ export default function Clustering({
     setResult(null)
     setShowClusters(false)
     setClusterStats(null)
-    if (onDataProjectDictChange) {
+    autoShowRef.current = true
       try {
         const dict = await fetchDataProjectDictFromClusteringJob(jobId)
         onDataProjectDictChange(dict)
       } catch {
         // keep existing dataProjectDict if fetch fails
       }
-    }
   }
 
   function handleModelChange(name: string) {
@@ -289,6 +290,100 @@ export default function Clustering({
   }
 
   const statusColor = isFailed ? '#ef4444' : isReady ? '#22c55e' : '#f59e0b'
+
+  if (historyOnly) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column' }}>
+        <style>{`@keyframes cl-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }`}</style>
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8 }}>
+          <div style={{ flex: 1 }}>
+            <JobRunSelect
+              label="Past Clustering Jobs"
+              tags={['latent-space-explorer', 'clustering']}
+              value={activeJobId}
+              onChange={handleSelectPastJob}
+            />
+          </div>
+          <button
+            onClick={() => setShowLogs(true)}
+            disabled={!activeJobId}
+            style={{
+              marginBottom: 12,
+              padding: '5px 10px',
+              background: activeJobId ? 'rgba(255,255,255,0.08)' : 'transparent',
+              border: `1px solid ${activeJobId ? C.border : 'rgba(255,255,255,0.08)'}`,
+              borderRadius: 4,
+              color: activeJobId ? C.textMuted : C.textDim,
+              fontFamily: C.mono,
+              fontSize: 11,
+              cursor: activeJobId ? 'pointer' : 'default',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            View Logs
+          </button>
+        </div>
+
+        {activeJobId && status && (
+          <div style={{
+            background: `${statusColor}1e`,
+            border: `1px solid ${statusColor}4d`,
+            borderRadius: 5,
+            padding: '8px 10px',
+            marginBottom: 10,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+          }}>
+            <span style={{
+              width: 7, height: 7, borderRadius: '50%', background: statusColor,
+              flexShrink: 0, display: 'inline-block',
+              ...(isRunning ? { animation: 'cl-pulse 1.2s ease-in-out infinite' } : {}),
+            }} />
+            <span style={{ fontFamily: C.mono, fontSize: 10, fontWeight: 600, letterSpacing: '.06em', color: statusColor }}>
+              {isFailed ? 'FAILED' : isReady ? 'COMPLETED' : 'RUNNING'}
+            </span>
+            <span style={{ fontFamily: C.mono, fontSize: 9, color: C.textDim, marginLeft: 'auto' }}>
+              {activeJobId.slice(0, 8)}…
+            </span>
+          </div>
+        )}
+
+        {clusterStats && clusterStats.length > 0 && (
+          <div style={{ marginBottom: 12 }}>
+            <SectionLabel>Clusters</SectionLabel>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {clusterStats.map(({ id, count }, i) => {
+                const isNoise = id === -1
+                return (
+                  <div
+                    key={id}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 7,
+                      padding: '3px 5px', borderRadius: 4,
+                      opacity: isNoise ? 0.5 : 1, cursor: 'default',
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.04)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                  >
+                    <div style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0, background: CLUSTER_COLORS[i % CLUSTER_COLORS.length] }} />
+                    <span style={{ fontFamily: C.mono, fontSize: 11, color: C.text, flex: 1 }}>
+                      {isNoise ? 'Noise' : `Cluster ${id}`}
+                    </span>
+                    <span style={{ fontFamily: C.mono, fontSize: 10, color: C.textMuted }}>{count}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {showLogs && activeJobId && (
+          <LogsModal jobId={activeJobId} onClose={() => setShowLogs(false)} />
+        )}
+      </div>
+    )
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column' }}>

@@ -58,9 +58,22 @@ function buildTraces(data: FeatureVectorResponse | ClusterResponse): Plotly.Data
 }
 
 function ScatterPlot({ data, onSelect, onDeselect, clearCount, dataRevision, onHover, onUnhover }: Props) {
-  const traces: Plotly.Data[] = data
-    ? buildTraces(data)
-    : [{ type: 'scattergl', mode: 'markers', x: [], y: [] } as Plotly.Data]
+  if (!data) {
+    return (
+      <div style={{
+        width: '100%', height: '100%',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        backgroundColor: DARK,
+        fontFamily: "'IBM Plex Mono', monospace",
+        fontSize: 11,
+        color: 'rgba(255,255,255,0.35)',
+      }}>
+        No data selected
+      </div>
+    )
+  }
+
+  const traces = buildTraces(data)
 
   const layout: Partial<Plotly.Layout> = {
     ...BASE_LAYOUT,
@@ -70,6 +83,7 @@ function ScatterPlot({ data, onSelect, onDeselect, clearCount, dataRevision, onH
   }
 
   function handleSelected(e: Plotly.PlotSelectionEvent) {
+    console.log("handle selected", e?.points)
     if (!e?.points?.length) {
       onDeselect()
       return

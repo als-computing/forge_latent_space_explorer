@@ -28,6 +28,21 @@ function metaString(opt: FlowRunOption): string {
     .join(' · ')
 }
 
+function stateDot(state: string): { color: string; title: string } {
+  const s = state.toLowerCase()
+  if (s === 'completed') return { color: '#22c55e', title: 'Completed' }
+  if (s === 'failed' || s === 'crashed') return { color: '#ef4444', title: state }
+  if (s === 'running' || s === 'pending' || s === 'scheduled' || s === 'paused')
+    return { color: '#f59e0b', title: state }
+  if (s === 'cancelled' || s === 'cancelling') return { color: '#6b7280', title: state }
+  return { color: 'rgba(255,255,255,0.25)', title: state || 'Unknown' }
+}
+
+function isFailed(state: string): boolean {
+  const s = state.toLowerCase()
+  return s === 'failed' || s === 'crashed'
+}
+
 function matchesSearch(opt: FlowRunOption, query: string): boolean {
   const q = query.toLowerCase()
   return [opt.project_name, opt.label, opt.algorithm, opt.autoencoder_model, opt.date, opt.value]
@@ -134,17 +149,26 @@ export default function JobRunSelect({ label, tags, value, onChange }: Props) {
       >
         {selected ? (
           <>
-            <span style={{
-              fontFamily: C.mono,
-              fontSize: 13,
-              fontWeight: 700,
-              color: C.text,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-              width: '100%',
-            }}>
-              {selected.project_name || selected.label}
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6, width: '100%', overflow: 'hidden' }}>
+              <span
+                title={stateDot(selected.state).title}
+                style={{
+                  width: 7, height: 7, borderRadius: '50%',
+                  backgroundColor: stateDot(selected.state).color,
+                  flexShrink: 0,
+                }}
+              />
+              <span style={{
+                fontFamily: C.mono,
+                fontSize: 13,
+                fontWeight: 700,
+                color: C.text,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}>
+                {selected.project_name || selected.label}
+              </span>
             </span>
             <span style={{
               fontFamily: C.mono,
@@ -233,35 +257,49 @@ export default function JobRunSelect({ label, tags, value, onChange }: Props) {
           )}
           {options.filter(opt => matchesSearch(opt, search)).map(opt => {
             const isSelected = opt.value === value
+            const failed = isFailed(opt.state)
+            const dot = stateDot(opt.state)
             return (
               <div
                 key={opt.value}
-                onClick={() => { onChange(opt.value); setOpen(false) }}
+                onClick={() => { if (!failed) { onChange(opt.value); setOpen(false) } }}
                 style={{
                   padding: '8px 10px',
-                  cursor: 'pointer',
+                  cursor: failed ? 'not-allowed' : 'pointer',
+                  opacity: failed ? 0.45 : 1,
                   background: isSelected ? 'rgba(79,142,247,0.12)' : 'transparent',
                   borderLeft: isSelected ? `2px solid ${C.accent}` : '2px solid transparent',
                   transition: 'background 0.1s',
                 }}
                 onMouseEnter={e => {
-                  if (!isSelected) e.currentTarget.style.background = 'rgba(255,255,255,0.05)'
+                  if (!isSelected && !failed) e.currentTarget.style.background = 'rgba(255,255,255,0.05)'
                 }}
                 onMouseLeave={e => {
                   if (!isSelected) e.currentTarget.style.background = 'transparent'
                 }}
               >
                 <div style={{
-                  fontFamily: C.mono,
-                  fontSize: 13,
-                  fontWeight: 700,
-                  color: isSelected ? C.accent : C.text,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                  marginBottom: 2,
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  marginBottom: 2, overflow: 'hidden',
                 }}>
-                  {opt.project_name || opt.label}
+                  <span
+                    title={dot.title}
+                    style={{
+                      width: 7, height: 7, borderRadius: '50%',
+                      backgroundColor: dot.color, flexShrink: 0,
+                    }}
+                  />
+                  <span style={{
+                    fontFamily: C.mono,
+                    fontSize: 13,
+                    fontWeight: 700,
+                    color: isSelected ? C.accent : C.text,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}>
+                    {opt.project_name || opt.label}
+                  </span>
                 </div>
                 <div style={{
                   fontFamily: C.mono,
@@ -270,6 +308,7 @@ export default function JobRunSelect({ label, tags, value, onChange }: Props) {
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
                   whiteSpace: 'nowrap',
+                  paddingLeft: 13,
                 }}>
                   {metaString(opt)}
                 </div>
