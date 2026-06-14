@@ -110,67 +110,67 @@ services:
     networks:
       - mle_net
 
-  latent-space-explorer:
-    restart: "unless-stopped"
-    container_name: "latent-space-explorer"
-    build:
-      context: "."
-    command: "python frontend.py"
-    environment:
-      # Dash
-      APP_HOST: "0.0.0.0"
-      APP_PORT: "8070"
-      # Data directories
-      READ_DIR_MOUNT: "${READ_DIR}"   # Used to mount the read directory in podman jobs
-      WRITE_DIR_MOUNT: "${WRITE_DIR}" # Used to mount the write directory in podman jobs
-      READ_DIR: "/tiled_storage"
-      WRITE_DIR: "/tiled_storage/writable"
-      # Tiled
-      DEFAULT_TILED_URI: '${DEFAULT_TILED_URI}'
-      DATA_TILED_KEY: '${DATA_TILED_KEY}'
-      LIVE_TILED_API_KEY: '${LIVE_TILED_API_KEY}'
-      RESULTS_TILED_URI: '${RESULTS_TILED_URI}'
-      RESULTS_TILED_API_KEY: '${RESULTS_TILED_API_KEY}'
-      TILED_REPLAY_PREFIX: 'beamlines/bl931/processed'  # NEW: Add this line
-      # Prefect
-      PREFECT_API_URL: '${PREFECT_API_URL}'
-      FLOW_NAME: '${FLOW_NAME}'
-      TIMEZONE: "${TIMEZONE}"
-      PREFECT_TAGS: "${PREFECT_TAGS}"
-      CONTAINER_NETWORK: "${CONTAINER_NETWORK}"
-      # Slurm jobs
-      PARTITIONS_CPU: "${PARTITIONS_CPU}"
-      MAX_TIME_CPU: "${MAX_TIME_CPU}"
-      RESERVATIONS_CPU: "${RESERVATIONS_CPU}"
-      PARTITIONS_GPU: "${PARTITIONS_GPU}"
-      RESERVATIONS_GPU: "${RESERVATIONS_GPU}"
-      MAX_TIME_GPU: "${MAX_TIME_GPU}"
-      SUBMISSION_SSH_KEY: "${SUBMISSION_SSH_KEY}"
-      FORWARD_PORTS: "${FORWARD_PORTS}"
-      # Mode
-      MODE: "development"
-      USER: ${USER}
-      # Live mode
-      WEBSOCKET_URL: ${WEBSOCKET_URL:-ws://localhost:8765/lse_operator}
-      # MLflow
-      MLFLOW_TRACKING_URI: '${MLFLOW_TRACKING_URI}'
-      MLFLOW_TRACKING_USERNAME: '${MLFLOW_TRACKING_USERNAME}'
-      MLFLOW_TRACKING_PASSWORD: '${MLFLOW_TRACKING_PASSWORD}'
-      # Redis
-      REDIS_HOST: '${REDIS_HOST}'
-      REDIS_PORT: '${REDIS_PORT}'
-    volumes:
-      - ${READ_DIR}:/tiled_storage
-      - ./src:/app/work/src
-      - ./data/tiled_cache:/tiled_cache
-    ports:
-      - "127.0.0.1:8070:8070"
-    depends_on:
-      - mlflow
-      - tiled
-      - prefect
-    networks:
-      mle_net:
+  # latent-space-explorer:
+  #   restart: "unless-stopped"
+  #   container_name: "latent-space-explorer"
+  #   build:
+  #     context: "."
+  #   command: "python frontend.py"
+  #   environment:
+  #     # Dash
+  #     APP_HOST: "0.0.0.0"
+  #     APP_PORT: "8070"
+  #     # Data directories
+  #     READ_DIR_MOUNT: "${READ_DIR}"   # Used to mount the read directory in podman jobs
+  #     WRITE_DIR_MOUNT: "${WRITE_DIR}" # Used to mount the write directory in podman jobs
+  #     READ_DIR: "/tiled_storage"
+  #     WRITE_DIR: "/tiled_storage/writable"
+  #     # Tiled
+  #     DEFAULT_TILED_URI: '${DEFAULT_TILED_URI}'
+  #     DATA_TILED_KEY: '${DATA_TILED_KEY}'
+  #     LIVE_TILED_API_KEY: '${LIVE_TILED_API_KEY}'
+  #     RESULTS_TILED_URI: '${RESULTS_TILED_URI}'
+  #     RESULTS_TILED_API_KEY: '${RESULTS_TILED_API_KEY}'
+  #     TILED_REPLAY_PREFIX: 'beamlines/bl931/processed'  # NEW: Add this line
+  #     # Prefect
+  #     PREFECT_API_URL: '${PREFECT_API_URL}'
+  #     FLOW_NAME: '${FLOW_NAME}'
+  #     TIMEZONE: "${TIMEZONE}"
+  #     PREFECT_TAGS: "${PREFECT_TAGS}"
+  #     CONTAINER_NETWORK: "${CONTAINER_NETWORK}"
+  #     # Slurm jobs
+  #     PARTITIONS_CPU: "${PARTITIONS_CPU}"
+  #     MAX_TIME_CPU: "${MAX_TIME_CPU}"
+  #     RESERVATIONS_CPU: "${RESERVATIONS_CPU}"
+  #     PARTITIONS_GPU: "${PARTITIONS_GPU}"
+  #     RESERVATIONS_GPU: "${RESERVATIONS_GPU}"
+  #     MAX_TIME_GPU: "${MAX_TIME_GPU}"
+  #     SUBMISSION_SSH_KEY: "${SUBMISSION_SSH_KEY}"
+  #     FORWARD_PORTS: "${FORWARD_PORTS}"
+  #     # Mode
+  #     MODE: "development"
+  #     USER: ${USER}
+  #     # Live mode
+  #     WEBSOCKET_URL: ${WEBSOCKET_URL:-ws://localhost:8765/lse_operator}
+  #     # MLflow
+  #     MLFLOW_TRACKING_URI: '${MLFLOW_TRACKING_URI}'
+  #     MLFLOW_TRACKING_USERNAME: '${MLFLOW_TRACKING_USERNAME}'
+  #     MLFLOW_TRACKING_PASSWORD: '${MLFLOW_TRACKING_PASSWORD}'
+  #     # Redis
+  #     REDIS_HOST: '${REDIS_HOST}'
+  #     REDIS_PORT: '${REDIS_PORT}'
+  #   volumes:
+  #     - ${READ_DIR}:/tiled_storage
+  #     - ./src:/app/work/src
+  #     - ./data/tiled_cache:/tiled_cache
+  #   ports:
+  #     - "127.0.0.1:8070:8070"
+  #   depends_on:
+  #     - mlflow
+  #     - tiled
+  #     - prefect
+  #   networks:
+  #     mle_net:
 
   kvrocks:  
     image: docker.io/apache/kvrocks:latest 
@@ -265,8 +265,6 @@ services:
       # User info
       USER: ${USER}
       # XPS_WEBSOCKET_URL removed - now configured in settings.yaml
-    depends_on:
-      - latent-space-explorer
     networks:
       mle_net:
 
@@ -362,7 +360,7 @@ services:
       dockerfile: api/Dockerfile
     container_name: lse-api
     ports:
-      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:8081:8081"
     environment:
       # Tiled
       DEFAULT_TILED_URI: 'http://tiled:8000'
@@ -377,6 +375,8 @@ services:
       PREFECT_API_URL: 'http://prefect:4200/api'
       FLOW_NAME: '${FLOW_NAME}'
       TIMEZONE: '${TIMEZONE}'
+      ARROYO_HOST: '${ARROYO_HOST:-arroyo_xps}'
+      ARROYO_PORT: '${ARROYO_PORT:-8765}'
       READ_DIR: '/tiled_storage'
       WRITE_DIR: '/tiled_storage/writable'
       USER: '${USER}'
@@ -397,7 +397,7 @@ services:
     ports:
       - "127.0.0.1:5173:5173"
     environment:
-      API_TARGET: 'http://lse-api:8080'
+      API_TARGET: 'http://lse-api:8081'
     depends_on:
       - lse-api
     networks:
