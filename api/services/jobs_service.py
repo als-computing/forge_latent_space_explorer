@@ -203,6 +203,17 @@ def get_job_logs(job_id: str) -> list[str]:
     return logs
 
 
+def get_live_models(model_type: str) -> list[MlflowModelOption]:
+    options = _mlflow_client.get_mlflow_models(livemode=True, model_type=model_type)
+    return [MlflowModelOption(label=opt['label'], value=opt['value']) for opt in options]
+
+
+def get_live_model_versions(model_name: str) -> list:
+    from schemas.jobs import ModelVersionOption
+    versions = _mlflow_client.get_model_versions(model_name)
+    return [ModelVersionOption(label=opt['label'], value=str(opt['value'])) for opt in versions]
+
+
 def get_mlflow_models() -> list[MlflowModelOption]:
     base_options = _mlflow_client.get_mlflow_models(livemode=False)
 

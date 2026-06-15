@@ -377,6 +377,8 @@ services:
       TIMEZONE: '${TIMEZONE}'
       ARROYO_HOST: '${ARROYO_HOST:-arroyo_xps}'
       ARROYO_PORT: '${ARROYO_PORT:-8765}'
+      REDIS_HOST: '${REDIS_HOST:-kvrocks}'
+      REDIS_PORT: '${REDIS_PORT:-6666}'
       READ_DIR: '/tiled_storage'
       WRITE_DIR: '/tiled_storage/writable'
       USER: '${USER}'
@@ -398,6 +400,8 @@ services:
       - "127.0.0.1:5173:5173"
     environment:
       API_TARGET: 'http://lse-api:8081'
+      ARROYO_TARGET: 'ws://arroyo_xps:8765'
+      VITE_ARROYO_WS_URL: 'ws://localhost:8765/lse_operator'
     depends_on:
       - lse-api
     networks:

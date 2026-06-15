@@ -10,6 +10,11 @@ class MlflowModelOption(BaseModel):
     date: str = ''
 
 
+class ModelVersionOption(BaseModel):
+    label: str
+    value: str
+
+
 class LatentSpaceJobRequest(BaseModel):
     data_project_dict: dict[str, Any]
     model_name: str

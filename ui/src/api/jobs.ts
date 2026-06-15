@@ -5,6 +5,7 @@ import type {
   JobSubmitResponse,
   LatentSpaceJobRequest,
   MlflowModelOption,
+  ModelVersionOption,
 } from '../types/jobs'
 
 export async function fetchFlowRuns(tags?: string[]): Promise<FlowRunOption[]> {
@@ -17,6 +18,18 @@ export async function fetchFlowRuns(tags?: string[]): Promise<FlowRunOption[]> {
 export async function fetchMlflowModels(): Promise<MlflowModelOption[]> {
   const res = await fetch('/api/jobs/mlflow-models')
   if (!res.ok) throw new Error(`Failed to fetch MLflow models: ${res.status}`)
+  return res.json()
+}
+
+export async function fetchLiveModels(modelType: 'autoencoder' | 'dimension_reduction'): Promise<MlflowModelOption[]> {
+  const res = await fetch(`/api/jobs/live-models?model_type=${modelType}`)
+  if (!res.ok) throw new Error(`Failed to fetch live models: ${res.status}`)
+  return res.json()
+}
+
+export async function fetchLiveModelVersions(modelName: string): Promise<ModelVersionOption[]> {
+  const res = await fetch(`/api/jobs/live-models/${encodeURIComponent(modelName)}/versions`)
+  if (!res.ok) throw new Error(`Failed to fetch model versions: ${res.status}`)
   return res.json()
 }
 

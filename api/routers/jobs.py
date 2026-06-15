@@ -9,6 +9,7 @@ from schemas.jobs import (
     JobSubmitResponse,
     LatentSpaceJobRequest,
     MlflowModelOption,
+    ModelVersionOption,
 )
 from services import jobs_service
 
@@ -19,6 +20,22 @@ router = APIRouter()
 def list_mlflow_models():
     try:
         return jobs_service.get_mlflow_models()
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e))
+
+
+@router.get("/live-models", response_model=list[MlflowModelOption])
+def list_live_models(model_type: Literal["autoencoder", "dimension_reduction"] = Query(...)):
+    try:
+        return jobs_service.get_live_models(model_type)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e))
+
+
+@router.get("/live-models/{model_name}/versions", response_model=list[ModelVersionOption])
+def list_live_model_versions(model_name: str):
+    try:
+        return jobs_service.get_live_model_versions(model_name)
     except Exception as e:
         raise HTTPException(status_code=502, detail=str(e))
 

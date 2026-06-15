@@ -7,6 +7,11 @@ export interface MlflowModelOption {
   date: string
 }
 
+export interface ModelVersionOption {
+  label: string
+  value: string
+}
+
 export interface LatentSpaceJobRequest {
   data_project_dict: DataProjectDict
   model_name: string
