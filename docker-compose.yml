@@ -3,6 +3,8 @@ services:
     image: prefecthq/prefect:3.4.2-python3.11
     command: prefect server start
     container_name: prefect-server
+    profiles:
+      - explore
     environment:
       - PREFECT_SERVER_API_HOST=0.0.0.0
       - PREFECT_API_DATABASE_CONNECTION_URL=postgresql+asyncpg://${PREFECT_DB_USER}:${PREFECT_DB_PW}@prefect_db:5432/${PREFECT_DB_NAME} # Needed if using postgres and not sqlite
@@ -19,6 +21,8 @@ services:
   prefect_db:
     image: postgres:14.5-alpine
     container_name: prefect-db
+    profiles:
+      - explore
     environment:
       - POSTGRES_USER=${PREFECT_DB_USER}
       - POSTGRES_PASSWORD=${PREFECT_DB_PW}
@@ -224,8 +228,8 @@ services:
       RESULTS_TILED_API_KEY: '${RESULTS_TILED_API_KEY}'
       # User info
       USER: ${USER}
-    depends_on:
-      - latent-space-explorer
+    # depends_on:
+    #   - latent-space-explorer
     networks:
       mle_net:
 
@@ -288,6 +292,7 @@ services:
   sim_unified:
     image: ghcr.io/als-computing/arroyosas:main
     container_name: sim_unified
+    restart: unless-stopped
     command: >
       python -m arroyosas.app.unified_sim_cli
       --mode ${SIM_MODE:-direct}
@@ -377,6 +382,7 @@ services:
       TIMEZONE: '${TIMEZONE}'
       ARROYO_HOST: '${ARROYO_HOST:-arroyo_xps}'
       ARROYO_PORT: '${ARROYO_PORT:-8765}'
+      DATA_SOURCE_URL: '${DATA_SOURCE_URL:-ws://timepix_processor:8001/xps_operator}'
       REDIS_HOST: '${REDIS_HOST:-kvrocks}'
       REDIS_PORT: '${REDIS_PORT:-6666}'
       READ_DIR: '/tiled_storage'
@@ -387,7 +393,6 @@ services:
     depends_on:
       - tiled
       - mlflow
-      - prefect
     networks:
       mle_net:
 

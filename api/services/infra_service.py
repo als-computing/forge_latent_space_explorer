@@ -14,16 +14,21 @@ RESULTS_TILED_URI = os.getenv("RESULTS_TILED_URI", "")
 RESULTS_TILED_API_KEY = os.getenv("RESULTS_TILED_API_KEY", "")
 ARROYO_HOST = os.getenv("ARROYO_HOST", "arroyo_xps")
 ARROYO_PORT = int(os.getenv("ARROYO_PORT", "8765"))
-WEBSOCKET_URL = os.getenv("WEBSOCKET_URL", "ws://timepix_processor:8001/xps_operator")
+# DATA_SOURCE_URL is the upstream data feed (XPS WebSocket or SAS ZMQ address).
+# Supports ws://, wss://, and tcp:// schemes — all probed as a TCP connection.
+DATA_SOURCE_URL = os.getenv("DATA_SOURCE_URL", "ws://timepix_processor:8001/xps_operator")
 
 
-def _check_websocket_ready() -> tuple[bool, str | None]:
-    if not WEBSOCKET_URL:
-        return False, "WEBSOCKET_URL is not configured"
+def _check_data_source_ready() -> tuple[bool, str | None]:
+    if not DATA_SOURCE_URL:
+        return False, "DATA_SOURCE_URL is not configured"
     try:
-        parsed = urlparse(WEBSOCKET_URL)
+        parsed = urlparse(DATA_SOURCE_URL)
         host = parsed.hostname
-        port = parsed.port or (443 if parsed.scheme == "wss" else 80)
+        if parsed.scheme == "tcp":
+            port = parsed.port or 5000
+        else:
+            port = parsed.port or (443 if parsed.scheme == "wss" else 80)
         with socket.create_connection((host, port), timeout=3):
             return True, None
     except Exception as e:
@@ -73,19 +78,19 @@ def get_infra_state() -> InfraState:
     if not arroyo_ready:
         any_infra_down = True
 
-    websocket_ready, websocket_error = _check_websocket_ready()
-    if not websocket_ready:
+    data_source_ready, data_source_error = _check_data_source_ready()
+    if not data_source_ready:
         any_infra_down = True
 
     return InfraState(
         tiled_ready=tiled_ready,
         mlflow_ready=mlflow_ready,
         arroyo_ready=arroyo_ready,
-        websocket_ready=websocket_ready,
+        data_source_ready=data_source_ready,
         any_infra_down=any_infra_down,
         last_checked=last_checked,
         tiled_error=tiled_error,
         mlflow_error=mlflow_error,
         arroyo_error=arroyo_error,
-        websocket_error=websocket_error,
+        data_source_error=data_source_error,
     )

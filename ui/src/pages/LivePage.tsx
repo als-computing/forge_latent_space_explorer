@@ -30,12 +30,14 @@ const HEADER_H = 72
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
-type Step = 'preflight' | 'models' | 'loading' | 'streaming'
-type ReadyKey = 'tiled_ready' | 'mlflow_ready' | 'arroyo_ready' | 'websocket_ready'
-type ErrorKey = 'tiled_error' | 'mlflow_error' | 'arroyo_error' | 'websocket_error'
+type Technique = 'xps' | 'sas'
+type Step = 'technique' | 'preflight' | 'models' | 'loading' | 'streaming'
+type ReadyKey = 'tiled_ready' | 'mlflow_ready' | 'arroyo_ready' | 'data_source_ready'
+type ErrorKey = 'tiled_error' | 'mlflow_error' | 'arroyo_error' | 'data_source_error'
 
 interface ServiceDef { readyKey: ReadyKey; errorKey: ErrorKey; name: string; desc: string; readyLabel: string }
 interface LiveConfig {
+  technique: Technique
   experimentName: string
   autoencoderName: string
   autoencoderVersion: string
@@ -43,12 +45,20 @@ interface LiveConfig {
   dimredVersion: string
 }
 
-const SERVICES: ServiceDef[] = [
-  { readyKey: 'tiled_ready',     errorKey: 'tiled_error',     name: 'Tiled — results store',     desc: 'Streams processed detector data to the explorer.',       readyLabel: 'Reachable' },
-  { readyKey: 'mlflow_ready',    errorKey: 'mlflow_error',    name: 'MLflow — model registry',   desc: 'Provides autoencoder and dim-reduction model artifacts.', readyLabel: 'Reachable' },
-  { readyKey: 'arroyo_ready',    errorKey: 'arroyo_error',    name: 'Arroyo — stream processor', desc: 'Runs live inference and publishes results to Tiled.',     readyLabel: 'Ready'     },
-  { readyKey: 'websocket_ready', errorKey: 'websocket_error', name: 'WebSocket — data source',   desc: 'Upstream detector stream feeding the arroyo operator.',  readyLabel: 'Reachable' },
-]
+const TECHNIQUE_META: Record<Technique, { label: string; full: string; dataSource: string }> = {
+  xps: { label: 'XPS', full: 'X-ray Photoelectron Spectroscopy', dataSource: 'WebSocket stream from TimePix detector' },
+  sas: { label: 'SAS', full: 'Small Angle Scattering',           dataSource: 'ZMQ stream from area detector'          },
+}
+
+function getServices(technique: Technique): ServiceDef[] {
+  const meta = TECHNIQUE_META[technique]
+  return [
+    { readyKey: 'tiled_ready',       errorKey: 'tiled_error',       name: 'Tiled — results store',     desc: 'Streams processed detector data to the explorer.',       readyLabel: 'Reachable' },
+    { readyKey: 'mlflow_ready',      errorKey: 'mlflow_error',      name: 'MLflow — model registry',   desc: 'Provides autoencoder and dim-reduction model artifacts.', readyLabel: 'Reachable' },
+    { readyKey: 'arroyo_ready',      errorKey: 'arroyo_error',      name: 'Arroyo — stream processor', desc: 'Runs live inference and publishes results to Tiled.',     readyLabel: 'Ready'     },
+    { readyKey: 'data_source_ready', errorKey: 'data_source_error', name: `${meta.label} data source`, desc: meta.dataSource,                                          readyLabel: 'Reachable' },
+  ]
+}
 
 // ── Small shared components ───────────────────────────────────────────────────
 
@@ -152,20 +162,71 @@ function GhostBtn({ onClick, children }: { onClick?: () => void; children: React
   )
 }
 
+// ── Step 0: Technique selection ───────────────────────────────────────────────
+
+function TechniqueStep({ onSelect }: { onSelect: (t: Technique) => void }) {
+  const options: { key: Technique; label: string; full: string; dataSource: string }[] = [
+    { key: 'xps', label: 'XPS', full: 'X-ray Photoelectron Spectroscopy', dataSource: 'WebSocket stream · TimePix detector' },
+    { key: 'sas', label: 'SAS', full: 'Small Angle Scattering',           dataSource: 'ZMQ stream · area detector'          },
+  ]
+  return (
+    <div style={{ padding: '1.5rem' }}>
+      <div style={{ fontSize: 16, fontWeight: 500, color: 'var(--text-h)', marginBottom: 4 }}>Live mode</div>
+      <div style={{ fontSize: 12, color: 'var(--text)', marginBottom: '1.25rem' }}>
+        Choose your technique to begin.
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        {options.map(opt => (
+          <button
+            key={opt.key}
+            onClick={() => onSelect(opt.key)}
+            style={{
+              textAlign: 'left', background: 'var(--bg)', cursor: 'pointer',
+              border: '0.5px solid var(--border)', borderRadius: 10,
+              padding: '1.25rem 1.25rem 1rem',
+              transition: 'border-color 0.15s, box-shadow 0.15s',
+            }}
+            onMouseEnter={e => {
+              (e.currentTarget as HTMLButtonElement).style.borderColor = GREEN.border
+              ;(e.currentTarget as HTMLButtonElement).style.boxShadow = `0 0 0 2px ${GREEN.pillBg}`
+            }}
+            onMouseLeave={e => {
+              (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--border)'
+              ;(e.currentTarget as HTMLButtonElement).style.boxShadow = 'none'
+            }}
+          >
+            <div style={{ fontSize: 22, fontWeight: 600, color: 'var(--text-h)', marginBottom: 4 }}>{opt.label}</div>
+            <div style={{ fontSize: 12, color: 'var(--text-h)', fontWeight: 500, marginBottom: 8 }}>{opt.full}</div>
+            <div style={{ fontSize: 11, color: 'var(--text)', opacity: 0.7 }}>{opt.dataSource}</div>
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // ── Step 1: Preflight ─────────────────────────────────────────────────────────
 
 function PreflightStep({
-  infra, checking, error, onRecheck, onNext,
+  technique, infra, checking, error, onRecheck, onBack, onNext,
 }: {
-  infra: InfraState | null; checking: boolean; error: string | null
-  onRecheck: () => void; onNext: () => void
+  technique: Technique; infra: InfraState | null; checking: boolean; error: string | null
+  onRecheck: () => void; onBack: () => void; onNext: () => void
 }) {
+  const services = getServices(technique)
   const allOk = infra ? !infra.any_infra_down : false
-  const downCount = infra ? SERVICES.filter(s => !infra[s.readyKey]).length : 0
+  const downCount = infra ? services.filter(s => !infra[s.readyKey]).length : 0
 
   return (
     <div style={{ padding: '1.5rem' }}>
       {/* Header */}
+      <button
+        onClick={onBack}
+        style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'none', border: 'none',
+          cursor: 'pointer', color: 'var(--text)', fontSize: 12, padding: 0, marginBottom: '1rem' }}
+      >
+        <ArrowLeft size={13} /> Back to technique selection
+      </button>
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '1.1rem' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -194,7 +255,7 @@ function PreflightStep({
 
       {/* Service grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10, marginBottom: '1.1rem' }}>
-        {SERVICES.map(svc => (
+        {services.map(svc => (
           <ServiceCard
             key={svc.readyKey}
             svc={svc}
@@ -276,7 +337,7 @@ function ModelSelect({
   )
 }
 
-function ModelStep({ onBack, onStart }: { onBack: () => void; onStart: (cfg: LiveConfig) => void }) {
+function ModelStep({ technique, onBack, onStart }: { technique: Technique; onBack: () => void; onStart: (cfg: LiveConfig) => void }) {
   const [aeModels, setAeModels] = useState<{ label: string; value: string | null }[]>([])
   const [drModels, setDrModels] = useState<{ label: string; value: string | null }[]>([])
   const [loadingModels, setLoadingModels] = useState(true)
@@ -393,6 +454,7 @@ function ModelStep({ onBack, onStart }: { onBack: () => void; onStart: (cfg: Liv
           <GreenBtn
             disabled={!canStart}
             onClick={() => canStart && onStart({
+              technique,
               experimentName: experimentName.trim(),
               autoencoderName: aeName, autoencoderVersion: aeVersion,
               dimredName: drName, dimredVersion: drVersion,
@@ -577,7 +639,7 @@ function LiveWorkspace({ config, infra, onStop }: { config: LiveConfig; infra: I
         <span style={{ opacity: 0.5 }}>
           {msgCount} received{skipCount > 0 ? `, ${skipCount} filtered` : ''}
         </span>
-        {infra && SERVICES.map(svc => {
+        {infra && getServices(config.technique).map(svc => {
           const ok = infra[svc.readyKey]
           return (
             <span key={svc.readyKey} style={{ display: 'inline-flex', alignItems: 'center', gap: 3,
@@ -622,11 +684,12 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function LivePage() {
-  const [step, setStep]           = useState<Step>('preflight')
-  const [infra, setInfra]         = useState<InfraState | null>(null)
-  const [checking, setChecking]   = useState(false)
-  const [infraError, setInfraError] = useState<string | null>(null)
-  const [liveConfig, setLiveConfig] = useState<LiveConfig | null>(null)
+  const [step, setStep]               = useState<Step>('technique')
+  const [technique, setTechnique]     = useState<Technique>('xps')
+  const [infra, setInfra]             = useState<InfraState | null>(null)
+  const [checking, setChecking]       = useState(false)
+  const [infraError, setInfraError]   = useState<string | null>(null)
+  const [liveConfig, setLiveConfig]   = useState<LiveConfig | null>(null)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const runCheck = useCallback(async () => {
@@ -665,7 +728,7 @@ export default function LivePage() {
 
   function handleStop() {
     stopLive().catch(e => console.error('Failed to clear Redis keys:', e))
-    setStep('preflight')
+    setStep('technique')
   }
 
   // Live workspace — no modal
@@ -704,17 +767,23 @@ export default function LivePage() {
           overflowY: 'auto',
           boxShadow: 'var(--shadow)',
         }}>
+          {step === 'technique' && (
+            <TechniqueStep onSelect={t => { setTechnique(t); setStep('preflight') }} />
+          )}
           {step === 'preflight' && (
             <PreflightStep
+              technique={technique}
               infra={infra}
               checking={checking}
               error={infraError}
               onRecheck={runCheck}
+              onBack={() => setStep('technique')}
               onNext={() => setStep('models')}
             />
           )}
           {step === 'models' && (
             <ModelStep
+              technique={technique}
               onBack={() => setStep('preflight')}
               onStart={handleStart}
             />

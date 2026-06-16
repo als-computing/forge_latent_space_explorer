@@ -1,7 +1,7 @@
 # Common settings
 common:
-  dataset: "timepix"  # "smi" or "trs" - determines which dataset config to use
-  autoencoder_type: "VAE"  # use VIT or VAE
+  dataset: "smi" # "smi" or "trs" - determines which dataset config to use
+  autoencoder_type: "VAE" # use VIT or VAE
   dimred_type: "neural" #use joblib or neural
 
 # Model configurations organized by dataset
@@ -16,7 +16,7 @@ models:
     dr_weights_path: "../models/vit/vit_joblib_test.joblib"
     latent_dim: 64
     image_size: [512, 512]
-    
+
   smi_vae:
     experiment_name: "smi_exp_vae"
     auto_model_name: "smi_auto_vae"
@@ -30,7 +30,6 @@ models:
     latent_dim: 512
     image_size: [512, 512]
 
-  
   # ============= TRS Dataset Models =============
   trs_vae:
     experiment_name: "trs_exp_vae"
