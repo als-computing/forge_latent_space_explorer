@@ -1,16 +1,20 @@
 from dotenv import load_dotenv
 load_dotenv("../.env")    # root .env — fallback for everything else
 
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from routers import data, infra, jobs, live, models
 
-app = FastAPI(title="Latent Space Explorer API")
+root_path = os.getenv("ROOT_PATH", "")
+cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
+
+app = FastAPI(title="Latent Space Explorer API", root_path=root_path)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # React dev server
+    allow_origins=cors_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )

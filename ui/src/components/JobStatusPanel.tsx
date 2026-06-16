@@ -110,7 +110,6 @@ function ActiveJobCard({ job, allRuns, onTerminate }: ActiveJobCardProps) {
   const isRunning = !isReady
 
   const statusColor = isFailed ? C.red : isReady ? C.green : C.amber
-  const statusBg = isFailed ? C.redBg : isReady ? C.greenBg : C.amberBg
   const statusBorder = isFailed ? C.redBorder : isReady ? C.greenBorder : C.amberBorder
   const statusText = isFailed ? 'FAILED' : isReady ? 'COMPLETED' : 'RUNNING'
 

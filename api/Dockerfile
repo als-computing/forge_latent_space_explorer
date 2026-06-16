@@ -15,4 +15,4 @@ RUN pip install --no-cache-dir ".[api]"
 # Copy full project so src/assets/default_models.json is accessible
 COPY . /app
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8081", "--reload"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8081"]

@@ -163,12 +163,22 @@ class LatentSpaceReducer(Reducer):
         # Initialize timing dictionary
         timing_info = {"autoencoder_time": None, "dimred_time": None}
 
-        # Check if models are currently being loading
+        # Check if models are currently being loaded
         if self.is_loading_model:
             logger.info(
                 f"Waiting for {self.loading_model_type} model to finish loading..."
             )
-            # Return a placeholder while models are loading
+            return None, timing_info
+
+        # If models are missing (e.g. subscriber thread hadn't connected yet at startup),
+        # check Redis now and trigger a load so frames aren't skipped indefinitely.
+        if self.current_torch_model is None or self.current_dim_reduction_model is None:
+            ae_name = self.redis_model_store.get_autoencoder_model() if self.redis_model_store else None
+            dr_name = self.redis_model_store.get_dimred_model() if self.redis_model_store else None
+            if ae_name and dr_name:
+                logger.info("Models not loaded but Redis has selections — loading now")
+                self._handle_model_update({"model_type": "autoencoder", "model_name": ae_name})
+                self._handle_model_update({"model_type": "dimred", "model_name": dr_name})
             return None, timing_info
 
         try:
@@ -231,40 +241,42 @@ class LatentSpaceReducer(Reducer):
         Subscribe to model update notifications through Redis PubSub
         This runs in a separate thread to listen for model updates
         """
-        try:
-            import threading
+        import json
+        import threading
 
-            def listen_for_updates():
-                """Listen for model updates in a separate thread"""
+        def listen_for_updates():
+            while True:
                 try:
                     redis_client = redis.Redis(
                         host=REDIS_HOST, port=REDIS_PORT, decode_responses=True
                     )
                     pubsub = redis_client.pubsub()
                     pubsub.subscribe("model_updates")
-
                     logger.info("Subscribed to model updates channel")
 
-                    # Listen for messages
                     for message in pubsub.listen():
                         if message["type"] == "message":
-                            data = message["data"]
                             try:
-                                import json
-
-                                update = json.loads(data)
+                                update = json.loads(message["data"])
                                 self._handle_model_update(update)
                             except Exception as e:
                                 logger.error(f"Error processing model update: {e}")
-                except Exception as e:
-                    logger.error(f"Error in model update listener: {e}")
 
-            # Start listener thread
-            thread = threading.Thread(target=listen_for_updates, daemon=True)
-            thread.start()
-            logger.info("Started model update listener thread")
-        except Exception as e:
-            logger.warning(f"Could not start model update listener: {e}")
+                except (
+                    redis.exceptions.ConnectionError,
+                    redis.exceptions.TimeoutError,
+                ) as e:
+                    logger.warning(
+                        f"Redis connection lost in model update listener: {e}. Retrying in 5s..."
+                    )
+                    time.sleep(5)
+                except Exception as e:
+                    logger.error(f"Unexpected error in model update listener: {e}. Retrying in 10s...")
+                    time.sleep(10)
+
+        thread = threading.Thread(target=listen_for_updates, daemon=True)
+        thread.start()
+        logger.info("Started model update listener thread")
 
     def _handle_model_update(self, update):
         """Handle a model update from Redis PubSub with version support"""

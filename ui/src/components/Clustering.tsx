@@ -205,7 +205,7 @@ export default function Clustering({
     autoShowRef.current = true
       try {
         const dict = await fetchDataProjectDictFromClusteringJob(jobId)
-        onDataProjectDictChange(dict)
+        onDataProjectDictChange?.(dict)
       } catch {
         // keep existing dataProjectDict if fetch fails
       }

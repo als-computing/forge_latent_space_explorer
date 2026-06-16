@@ -6,17 +6,18 @@ import {
 import { fetchInfraHealth } from '../api/infra'
 import { fetchLiveModels, fetchLiveModelVersions } from '../api/jobs'
 import { startLive, stopLive } from '../api/live'
+import { WS_BASE } from '../api/base'
 import ScatterPlot from '../components/ScatterPlot'
 import type { InfraState } from '../types/infra'
 import type { FeatureVectorResponse } from '../types/data'
 
-// VITE_ARROYO_WS_URL is set at container start time (docker-compose env).
-// Fall back to the Vite-proxied path for local dev without Docker.
+// VITE_ARROYO_WS_URL can be set as a build arg to override (e.g. direct arroyo connection).
+// Default: route through the app's nginx proxy using the configured base path.
 const ARROYO_WS_URL: string =
-  import.meta.env.VITE_ARROYO_WS_URL as string | undefined
+  (import.meta.env.VITE_ARROYO_WS_URL || null)
   ?? (() => {
     const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    return `${proto}//${window.location.host}/ws/lse_operator`
+    return `${proto}//${window.location.host}${WS_BASE}/lse_operator`
   })()
 
 const DEBOUNCE_MS = 100

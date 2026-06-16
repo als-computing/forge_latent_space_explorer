@@ -7,8 +7,8 @@ const POLL_INTERVAL_MS = 30_000
 const SERVICES: { key: keyof InfraState; label: string }[] = [
   { key: 'tiled_ready', label: 'Tiled' },
   { key: 'mlflow_ready', label: 'MLflow' },
-  { key: 'prefect_ready', label: 'Prefect API' },
-  { key: 'prefect_worker_ready', label: 'Prefect Worker' },
+  { key: 'arroyo_ready', label: 'Arroyo' },
+  { key: 'data_source_ready', label: 'Data source' },
 ]
 
 export default function InfraStatus() {
