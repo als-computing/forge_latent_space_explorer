@@ -1,8 +1,11 @@
+import logging
+
 from fastapi import APIRouter, HTTPException, Query
 
 from schemas.models import Model
 from services.model_service import get_model, get_models
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 

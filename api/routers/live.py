@@ -25,6 +25,7 @@ def start_live(req: LiveStartRequest):
     try:
         live_service.start_live(req.autoencoder_model, req.dimred_model, req.experiment_name)
     except Exception as e:
+        logger.exception("Failed to start live mode")
         raise HTTPException(status_code=502, detail=str(e))
 
 
@@ -33,6 +34,7 @@ def stop_live():
     try:
         live_service.stop_live()
     except Exception as e:
+        logger.exception("Failed to stop live mode")
         raise HTTPException(status_code=502, detail=str(e))
 
 

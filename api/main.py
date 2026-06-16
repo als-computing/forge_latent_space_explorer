@@ -1,9 +1,17 @@
 from dotenv import load_dotenv
 load_dotenv("../.env")    # root .env — fallback for everything else
 
+import logging
 import os
 from fastapi import FastAPI
 from routers import data, infra, jobs, live, models
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    datefmt="%Y-%m-%dT%H:%M:%S",
+)
+logger = logging.getLogger(__name__)
 
 root_path = os.getenv("ROOT_PATH", "")
 

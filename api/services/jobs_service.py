@@ -336,6 +336,7 @@ def submit_latent_space_job(req: LatentSpaceJobRequest) -> JobSubmitResponse:
             flow_run_name=f"{req.job_name} {current_time}",
             tags=PREFECT_TAGS + [project_name, "latent-space"],
         ))
+        logger.info("Latent-space job submitted: uid=%s project=%s model=%s", job_uid, project_name, req.model_name)
         return JobSubmitResponse(
             job_uid=job_uid,
             message=f"Job submitted with uid {job_uid}",
@@ -402,6 +403,7 @@ def submit_clustering_job(req: ClusteringJobRequest) -> JobSubmitResponse:
             flow_run_name=f"{dim_red_name} {req.job_name} {current_time}",
             tags=PREFECT_TAGS + [project_name, "clustering"],
         ))
+        logger.info("Clustering job submitted: uid=%s project=%s model=%s", job_uid, project_name, req.model_name)
         return JobSubmitResponse(
             job_uid=job_uid,
             message=f"Job submitted with uid {job_uid}",

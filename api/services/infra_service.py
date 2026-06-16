@@ -1,3 +1,4 @@
+import logging
 import os
 import socket
 from datetime import datetime
@@ -9,6 +10,8 @@ from mlex_utils.mlflow_utils.mlflow_model_client import MLflowModelClient
 from zoneinfo import ZoneInfo
 
 from schemas.infra import InfraState
+
+logger = logging.getLogger(__name__)
 
 TIMEZONE = os.getenv("TIMEZONE", "US/Pacific")
 RESULTS_TILED_URI = os.getenv("RESULTS_TILED_URI", "")

@@ -1,7 +1,10 @@
 import json
+import logging
 from pathlib import Path
 
 from schemas.models import Model
+
+logger = logging.getLogger(__name__)
 
 _MODELS_FILE = Path(__file__).parent.parent.parent / "src" / "assets" / "default_models.json"
 

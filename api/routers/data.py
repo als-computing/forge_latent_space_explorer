@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, HTTPException
 
 from schemas.data import (
@@ -17,6 +19,7 @@ from schemas.data import (
 )
 from services import data_service
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -25,6 +28,7 @@ def list_masks():
     try:
         return data_service.get_masks()
     except Exception as e:
+        logger.exception("Failed to get masks")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -33,6 +37,7 @@ def list_filesystem(rel_path: str = ""):
     try:
         return data_service.list_filesystem(rel_path)
     except Exception as e:
+        logger.exception("Failed to list filesystem (rel_path=%s)", rel_path)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -46,6 +51,7 @@ def list_tiled_node(base_uri: str, node_path: str = ""):
     try:
         return data_service.list_tiled_node(base_uri, node_path)
     except Exception as e:
+        logger.exception("Failed to list Tiled node (base_uri=%s, node_path=%s)", base_uri, node_path)
         raise HTTPException(status_code=502, detail=str(e))
 
 
@@ -54,6 +60,7 @@ def browse_filesystem(req: BrowseFilesystemRequest):
     try:
         return data_service.browse_filesystem(req.paths)
     except Exception as e:
+        logger.exception("Failed to browse filesystem")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -62,6 +69,7 @@ def browse_tiled(req: BrowseTiledRequest):
     try:
         return data_service.browse_tiled(req.uri, req.paths)
     except Exception as e:
+        logger.exception("Failed to browse Tiled")
         raise HTTPException(status_code=502, detail=str(e))
 
 
@@ -70,6 +78,7 @@ def get_feature_vectors(latent_space_job_id: str, project_name: str = ""):
     try:
         return data_service.get_feature_vectors(latent_space_job_id, project_name)
     except Exception as e:
+        logger.exception("Failed to get feature vectors for job %s", latent_space_job_id)
         raise HTTPException(status_code=502, detail=str(e))
 
 
@@ -78,6 +87,7 @@ def get_clusters(clustering_job_id: str, project_name: str = "", latent_space_jo
     try:
         return data_service.get_clusters(clustering_job_id, project_name, latent_space_job_id)
     except Exception as e:
+        logger.exception("Failed to get clusters for job %s", clustering_job_id)
         raise HTTPException(status_code=502, detail=str(e))
 
 
@@ -86,6 +96,7 @@ def get_overview(req: OverviewRequest):
     try:
         return data_service.get_overview(req)
     except Exception as e:
+        logger.exception("Failed to compute overview")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -100,6 +111,7 @@ def get_data_project_dict(dimension_reduction_job_id: str = "", clustering_job_i
     except HTTPException:
         raise
     except Exception as e:
+        logger.exception("Failed to get data project dict")
         raise HTTPException(status_code=502, detail=str(e))
 
 
@@ -108,4 +120,5 @@ def compute_heatmap(req: HeatmapRequest):
     try:
         return data_service.compute_heatmap(req)
     except Exception as e:
+        logger.exception("Failed to compute heatmap")
         raise HTTPException(status_code=500, detail=str(e))
