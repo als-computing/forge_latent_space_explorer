@@ -4,9 +4,9 @@ WORKDIR /app
 
 COPY . /app
 
-RUN pip install --upgrade pip
-RUN pip install .[arroyo]
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir .[arroyo]
 
-ENV HOME /app
+ENV HOME=/app
 
 ENTRYPOINT ["arroyo", "run"]
