@@ -5,7 +5,9 @@ services:
     ports:
       - "80:80"
     volumes:
-      - ./local-proxy.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./local-proxy.conf:/etc/nginx/templates/default.conf.template:ro
+    environment:
+      ARROYO_HOST: ${ARROYO_HOST:-arroyo}
     depends_on:
       - lse-ui
       - lse-api

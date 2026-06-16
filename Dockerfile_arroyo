@@ -7,6 +7,25 @@ COPY . /app
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir .[arroyo]
 
+# mlex_utils unconditionally imports prefect even from the MLflow client, but
+# arroyo never calls those functions. Make the import optional so prefect is
+# not required as a dependency.
+RUN python3 - <<'EOF'
+import site, os
+for sp in site.getsitepackages():
+    f = os.path.join(sp, 'mlex_utils/mlflow_utils/mlflow_model_client.py')
+    if not os.path.exists(f):
+        continue
+    content = open(f).read()
+    patched = content.replace(
+        'from mlex_utils.prefect_utils.core import get_flow_run_name, get_flow_run_parent_id',
+        'try:\n    from mlex_utils.prefect_utils.core import get_flow_run_name, get_flow_run_parent_id\nexcept ImportError:\n    def get_flow_run_name(): return None\n    def get_flow_run_parent_id(): return None'
+    )
+    open(f, 'w').write(patched)
+    print('patched', f)
+    break
+EOF
+
 ENV HOME=/app
 
 ENTRYPOINT ["arroyo", "run"]

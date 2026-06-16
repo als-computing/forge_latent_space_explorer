@@ -95,6 +95,6 @@ arroyo = [
     "umap-learn",
     "joblib==1.4.2",
     "mlflow==2.22.0",
-    "mlex_utils[all] @ git+https://github.com/mlexchange/mlex_utils.git",
+    "mlex_utils @ git+https://github.com/mlexchange/mlex_utils.git",
     "numpy<2.0.0"
 ]

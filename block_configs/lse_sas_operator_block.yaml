@@ -22,4 +22,4 @@ blocks:
         kwargs:
           root_segments:
             - lse_live_results
-          tiled_prefix: "beamlines/bl931/processed"
+          tiled_prefix: "lse_test/SMI/processed"

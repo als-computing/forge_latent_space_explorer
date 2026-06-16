@@ -193,7 +193,51 @@ services:
   # To run real image simulator, use
   # docker compose --profile arroyo --profile sim up
 
-  # Original SAXS arroyo service
+  # SAS arroyo via Bluesky/Tiled (real detector)
+  arroyo_sas_bluesky:
+    build:
+      context: .
+      dockerfile: Dockerfile_arroyo
+    command: "block_configs/lse_sas_bluesky_operator_block.yaml"
+    container_name: arroyo_sas_bluesky
+    profiles:
+      - arroyo_sas_bluesky
+    volumes:
+      - .:/app:Z
+      - ./data/mlflow_cache:/mlflow_cache
+      - ./data/vector_save:/data/vector_save
+    ports:
+      - 127.0.0.1:8765:8765
+    environment:
+      NUMBA_DISABLE_JIT: ${NUMBA_DISABLE_JIT:-0}
+      NUMBA_CPU_NAME: ${NUMBA_CPU_NAME:-generic}
+      NUMBA_CPU_FEATURES: ${NUMBA_CPU_FEATURES:-+neon}
+      MLFLOW_CACHE_DIR: "/mlflow_cache"
+      PYTHONUNBUFFERED: 1
+      MALLOC_TRIM_THRESHOLD_: 0
+      MLFLOW_TRACKING_URI: ${MLFLOW_TRACKING_URI}
+      MLFLOW_TRACKING_USERNAME: ${MLFLOW_TRACKING_USERNAME}
+      MLFLOW_TRACKING_PASSWORD: ${MLFLOW_TRACKING_PASSWORD}
+      MLFLOW_TRACKING_INSECURE_TLS: ${MLFLOW_TRACKING_INSECURE_TLS:-False}
+      REDIS_HOST: ${REDIS_HOST}
+      REDIS_PORT: ${REDIS_PORT}
+      RESULTS_TILED_URI: '${RESULTS_TILED_URI}'
+      RESULTS_TILED_API_KEY: '${RESULTS_TILED_API_KEY}'
+      LIVE_TILED_API_KEY: '${LIVE_TILED_API_KEY}'
+      USER: ${USER}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.lse-ws.rule=Host(`${APP_HOST}`) && PathPrefix(`${APP_BASE:-/lse}/ws`)"
+      - "traefik.http.routers.lse-ws.entrypoints=websecure"
+      - "traefik.http.routers.lse-ws.tls=true"
+      - "traefik.http.routers.lse-ws.middlewares=lse-ws-strip"
+      - "traefik.http.middlewares.lse-ws-strip.stripprefix.prefixes=${APP_BASE:-/lse}/ws"
+      - "traefik.http.services.lse-ws.loadbalancer.server.port=8765"
+    networks:
+      mle_net:
+      web:
+
+  # Original SAXS arroyo service (ZMQ, for sim)
   arroyo:
     build:
       context: .
@@ -391,9 +435,10 @@ services:
       RESULTS_TILED_URI: 'http://tiled:8000'
       RESULTS_TILED_API_KEY: '${RESULTS_TILED_API_KEY}'
       # MLflow
-      MLFLOW_TRACKING_URI: 'http://mlflow:5000'
+      MLFLOW_TRACKING_URI: '${MLFLOW_TRACKING_URI:-http://mlflow:5000}'
       MLFLOW_TRACKING_USERNAME: '${MLFLOW_TRACKING_USERNAME}'
       MLFLOW_TRACKING_PASSWORD: '${MLFLOW_TRACKING_PASSWORD}'
+      MLFLOW_TRACKING_INSECURE_TLS: '${MLFLOW_TRACKING_INSECURE_TLS:-false}'
       # Prefect
       PREFECT_API_URL: 'http://prefect:4200/api'
       FLOW_NAME: '${FLOW_NAME}'
@@ -411,7 +456,6 @@ services:
       - ${READ_DIR}:/tiled_storage
     depends_on:
       - tiled
-      - mlflow
     labels:
       - "traefik.enable=true"
       # API route: {host}/api/v1/... → strips /api/v1 → FastAPI

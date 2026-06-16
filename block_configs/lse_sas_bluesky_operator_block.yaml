@@ -1,0 +1,27 @@
+blocks:
+  - name: LSE SAS Bluesky Operator
+    description: 2D latent space operator for SAS data via Bluesky/Tiled WebSocket
+
+    operator:
+      class: src.arroyo_reduction.operator.build_lse_operator
+
+    listeners:
+      - class: arroyosas.tiled.tiled_websocket_bluesky.tiled_ws_listener_factory
+        kwargs:
+          uri: "http://tiled:8000"
+          stream_name: "primary"
+          target: "img"
+
+    publishers:
+      - class: src.arroyo_reduction.publisher.lse_ws_result_publisher_factory
+        kwargs:
+          host: "0.0.0.0"
+          port: 8765
+      - class: src.arroyo_reduction.vector_save.vector_save_publisher_factory
+        kwargs:
+          db_path: "/data/vector_save/latent_vectors.db"
+      - class: src.arroyo_reduction.tiled_results_publisher.tiled_results_publisher_factory
+        kwargs:
+          root_segments:
+            - lse_live_results
+          tiled_prefix: "lse_test/SMI/processed"
