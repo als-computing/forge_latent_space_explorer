@@ -42,7 +42,14 @@ TIMEZONE = os.getenv("TIMEZONE", "US/Pacific")
 USER = os.getenv("USER", "")
 
 logger = logging.getLogger(__name__)
-_mlflow_client = MLflowModelClient()
+_mlflow_client: MLflowModelClient | None = None
+
+
+def _get_mlflow_client() -> MLflowModelClient:
+    global _mlflow_client
+    if _mlflow_client is None:
+        _mlflow_client = MLflowModelClient()
+    return _mlflow_client
 
 _SYSTEM_TAGS = (
     set(json.loads(os.getenv("PREFECT_TAGS", '["latent-space-explorer"]')))
@@ -127,7 +134,7 @@ def get_flow_runs(tags: list[str] | None = None) -> list[FlowRunOption]:
     try:
         mlflow_label_by_id = {
             opt['value']: opt['label']
-            for opt in _mlflow_client.get_mlflow_models(livemode=False)
+            for opt in _get_mlflow_client().get_mlflow_models(livemode=False)
             if opt.get('value')
         }
     except Exception:
@@ -204,23 +211,24 @@ def get_job_logs(job_id: str) -> list[str]:
 
 
 def get_live_models(model_type: str) -> list[MlflowModelOption]:
-    options = _mlflow_client.get_mlflow_models(livemode=True, model_type=model_type)
+    options = _get_mlflow_client().get_mlflow_models(livemode=True, model_type=model_type)
     return [MlflowModelOption(label=opt['label'], value=opt['value']) for opt in options]
 
 
 def get_live_model_versions(model_name: str) -> list:
     from schemas.jobs import ModelVersionOption
-    versions = _mlflow_client.get_model_versions(model_name)
+    versions = _get_mlflow_client().get_model_versions(model_name)
     return [ModelVersionOption(label=opt['label'], value=str(opt['value'])) for opt in versions]
 
 
 def get_mlflow_models() -> list[MlflowModelOption]:
-    base_options = _mlflow_client.get_mlflow_models(livemode=False)
+    client = _get_mlflow_client()
+    base_options = client.get_mlflow_models(livemode=False)
 
     # Build a lookup: model_name -> (algorithm, date) using one bulk versions query
     enrichment: dict[str, tuple[str, str]] = {}
     try:
-        all_versions = _mlflow_client.client.search_model_versions()
+        all_versions = client.client.search_model_versions()
         latest: dict[str, object] = {}
         for v in all_versions:
             cur = latest.get(v.name)
@@ -228,7 +236,7 @@ def get_mlflow_models() -> list[MlflowModelOption]:
                 latest[v.name] = v
         for name, v in latest.items():
             try:
-                run = _mlflow_client.client.get_run(v.run_id)  # type: ignore[union-attr]
+                run = client.client.get_run(v.run_id)  # type: ignore[union-attr]
                 algorithm = run.data.tags.get('model_type', '')
                 ts = getattr(v, 'creation_timestamp', None) or run.info.start_time
                 date = (
@@ -292,7 +300,7 @@ def submit_latent_space_job(req: LatentSpaceJobRequest) -> JobSubmitResponse:
     model_parameters["percentiles"] = req.percentiles
     model_parameters["mask"] = req.mask
 
-    auto_params = _mlflow_client.get_mlflow_params(req.mlflow_model_id)
+    auto_params = _get_mlflow_client().get_mlflow_params(req.mlflow_model_id)
 
     latent_space_model = model_service.get_models("latent_space_extraction")[0]
     dim_reduction_model = model_service.get_model(req.model_name)
