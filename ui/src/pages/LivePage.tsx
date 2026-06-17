@@ -48,7 +48,7 @@ interface LiveConfig {
 
 const TECHNIQUE_META: Record<Technique, { label: string; full: string; dataSource: string }> = {
   xps: { label: 'XPS', full: 'X-ray Photoelectron Spectroscopy', dataSource: 'WebSocket stream from TimePix detector' },
-  sas: { label: 'SAS', full: 'Small Angle Scattering',           dataSource: 'ZMQ stream from area detector'          },
+  sas: { label: 'SAS', full: 'Small Angle Scattering',           dataSource: 'WebSocket stream'          },
 }
 
 function getServices(technique: Technique): ServiceDef[] {
@@ -168,7 +168,7 @@ function GhostBtn({ onClick, children }: { onClick?: () => void; children: React
 function TechniqueStep({ onSelect }: { onSelect: (t: Technique) => void }) {
   const options: { key: Technique; label: string; full: string; dataSource: string }[] = [
     { key: 'xps', label: 'XPS', full: 'X-ray Photoelectron Spectroscopy', dataSource: 'WebSocket stream · TimePix detector' },
-    { key: 'sas', label: 'SAS', full: 'Small Angle Scattering',           dataSource: 'ZMQ stream · area detector'          },
+    { key: 'sas', label: 'SAS', full: 'Small Angle Scattering',           dataSource: 'WebSocket stream · Bluesky/Tiled'    },
   ]
   return (
     <div style={{ padding: '1.5rem' }}>
@@ -670,7 +670,7 @@ function Banner({ variant, children, style }: {
       display: 'flex', alignItems: 'flex-start', gap: 8,
       background: c.bg, border: `0.5px solid ${c.border}`, ...style }}>
       <c.Icon size={16} style={{ color: c.text, flexShrink: 0, marginTop: 1 }} />
-      <div style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--text-h)' }}>{children}</div>
+      <div style={{ fontSize: 13, lineHeight: 1.6, color: c.text }}>{children}</div>
     </div>
   )
 }

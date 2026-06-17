@@ -4,6 +4,7 @@ from datetime import datetime
 from urllib.parse import urlparse
 
 import httpx
+import websocket
 from mlex_utils.mlflow_utils.mlflow_model_client import MLflowModelClient
 from zoneinfo import ZoneInfo
 
@@ -24,11 +25,13 @@ def _check_data_source_ready() -> tuple[bool, str | None]:
         return False, "DATA_SOURCE_URL is not configured"
     try:
         parsed = urlparse(DATA_SOURCE_URL)
+        if parsed.scheme in ("ws", "wss"):
+            ws = websocket.create_connection(DATA_SOURCE_URL, timeout=3)
+            ws.close()
+            return True, None
+        # tcp:// — fall back to raw TCP probe
         host = parsed.hostname
-        if parsed.scheme == "tcp":
-            port = parsed.port or 5000
-        else:
-            port = parsed.port or (443 if parsed.scheme == "wss" else 80)
+        port = parsed.port or 5000
         with socket.create_connection((host, port), timeout=3):
             return True, None
     except Exception as e:
