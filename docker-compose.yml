@@ -225,17 +225,8 @@ services:
       RESULTS_TILED_API_KEY: '${RESULTS_TILED_API_KEY}'
       LIVE_TILED_API_KEY: '${LIVE_TILED_API_KEY}'
       USER: ${USER}
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.lse-ws.rule=Host(`${APP_HOST}`) && PathPrefix(`${APP_BASE:-/lse}/ws`)"
-      - "traefik.http.routers.lse-ws.entrypoints=websecure"
-      - "traefik.http.routers.lse-ws.tls=true"
-      - "traefik.http.routers.lse-ws.middlewares=lse-ws-strip"
-      - "traefik.http.middlewares.lse-ws-strip.stripprefix.prefixes=${APP_BASE:-/lse}/ws"
-      - "traefik.http.services.lse-ws.loadbalancer.server.port=8765"
     networks:
       mle_net:
-      web:
 
   # Original SAXS arroyo service (ZMQ, for sim)
   arroyo:
@@ -272,19 +263,8 @@ services:
       RESULTS_TILED_API_KEY: '${RESULTS_TILED_API_KEY}'
       # User info
       USER: ${USER}
-    # depends_on:
-    #   - latent-space-explorer
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.lse-ws.rule=Host(`${APP_HOST}`) && PathPrefix(`${APP_BASE:-/lse}/ws`)"
-      - "traefik.http.routers.lse-ws.entrypoints=websecure"
-      - "traefik.http.routers.lse-ws.tls=true"
-      - "traefik.http.routers.lse-ws.middlewares=lse-ws-strip"
-      - "traefik.http.middlewares.lse-ws-strip.stripprefix.prefixes=${APP_BASE:-/lse}/ws"
-      - "traefik.http.services.lse-ws.loadbalancer.server.port=8765"
     networks:
       mle_net:
-      web:
 
   # NEW: XPS arroyo service (XPS_WEBSOCKET_URL environment variable REMOVED)
   arroyo_xps:
@@ -322,17 +302,8 @@ services:
       # User info
       USER: ${USER}
       # XPS_WEBSOCKET_URL removed - now configured in settings.yaml
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.lse-ws.rule=Host(`${APP_HOST}`) && PathPrefix(`${APP_BASE:-/lse}/ws`)"
-      - "traefik.http.routers.lse-ws.entrypoints=websecure"
-      - "traefik.http.routers.lse-ws.tls=true"
-      - "traefik.http.routers.lse-ws.middlewares=lse-ws-strip"
-      - "traefik.http.middlewares.lse-ws-strip.stripprefix.prefixes=${APP_BASE:-/lse}/ws"
-      - "traefik.http.services.lse-ws.loadbalancer.server.port=8765"
     networks:
       mle_net:
-      web:
 
   #Simulator 1: f_vec simulator service
   arroyo_vec_sim:
@@ -456,54 +427,24 @@ services:
       - ${READ_DIR}:/tiled_storage
     depends_on:
       - tiled
-    labels:
-      - "traefik.enable=true"
-      # API route: {host}/api/v1/... → strips /api/v1 → FastAPI
-      - "traefik.http.routers.lse-api.rule=Host(`${APP_HOST}`) && PathPrefix(`/api/v1`)"
-      - "traefik.http.routers.lse-api.entrypoints=websecure"
-      - "traefik.http.routers.lse-api.tls=true"
-      - "traefik.http.routers.lse-api.middlewares=lse-api-strip"
-      - "traefik.http.routers.lse-api.service=lse-api-svc"
-      - "traefik.http.middlewares.lse-api-strip.stripprefix.prefixes=/api/v1"
-      # Docs route: {host}/lse/docs and {host}/lse/redoc → strips /lse → FastAPI /docs
-      - "traefik.http.routers.lse-docs.rule=Host(`${APP_HOST}`) && (PathPrefix(`${APP_BASE:-/lse}/docs`) || PathPrefix(`${APP_BASE:-/lse}/redoc`))"
-      - "traefik.http.routers.lse-docs.entrypoints=websecure"
-      - "traefik.http.routers.lse-docs.tls=true"
-      - "traefik.http.routers.lse-docs.middlewares=lse-docs-strip"
-      - "traefik.http.routers.lse-docs.service=lse-api-svc"
-      - "traefik.http.middlewares.lse-docs-strip.stripprefix.prefixes=${APP_BASE:-/lse}"
-      - "traefik.http.services.lse-api-svc.loadbalancer.server.port=8081"
     networks:
       mle_net:
-      web:
 
   lse-ui:
     build:
       context: .
       dockerfile: ui/Dockerfile
       args:
-        VITE_APP_BASE: '${APP_BASE:-/lse}'
         VITE_API_BASE: '/api/v1'
     container_name: lse-ui
     ports:
       - "127.0.0.1:5173:5173"
     depends_on:
       - lse-api
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.lse-ui.rule=Host(`${APP_HOST}`) && PathPrefix(`${APP_BASE:-/lse}`)"
-      - "traefik.http.routers.lse-ui.entrypoints=websecure"
-      - "traefik.http.routers.lse-ui.tls=true"
-      - "traefik.http.routers.lse-ui.middlewares=lse-ui-strip"
-      - "traefik.http.middlewares.lse-ui-strip.stripprefix.prefixes=${APP_BASE:-/lse}"
-      - "traefik.http.services.lse-ui.loadbalancer.server.port=5173"
     networks:
       mle_net:
-      web:
 
 networks:
   mle_net:
     name: mle_net
     driver: bridge
-  web:
-    external: true

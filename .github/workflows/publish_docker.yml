@@ -71,7 +71,6 @@ jobs:
           tags: ${{ steps.meta-ui.outputs.tags }}
           labels: ${{ steps.meta-ui.outputs.labels }}
           build-args: |
-            VITE_APP_BASE=/lse
             VITE_API_BASE=/api/v1
 
       # --- Arroyo image ---
