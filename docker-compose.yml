@@ -445,7 +445,6 @@ services:
       READ_DIR: '/tiled_storage'
       WRITE_DIR: '/tiled_storage/writable'
       USER: '${USER}'
-      ROOT_PATH: '/api/v1'
     volumes:
       - ${READ_DIR}:/tiled_storage
     depends_on:

@@ -1,3 +1,11 @@
+FROM node:20-slim AS ui-build
+WORKDIR /ui
+COPY ui/package*.json .
+RUN npm ci
+COPY ui/ .
+RUN npm run build
+
+
 FROM python:3.11-slim
 
 WORKDIR /app/api
@@ -14,5 +22,8 @@ RUN pip install --no-cache-dir ".[api]"
 
 # Copy full project so src/assets/default_models.json is accessible
 COPY . /app
+
+# Copy built UI from the first stage
+COPY --from=ui-build /ui/dist /app/ui/dist
 
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8081"]
