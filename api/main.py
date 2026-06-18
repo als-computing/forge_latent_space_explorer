@@ -1,10 +1,12 @@
 import logging
 import os
 from pathlib import Path
+
+from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse
-from starlette.exceptions import HTTPException as StarletteHTTPException
 from routers import data, infra, jobs, live, models
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 load_dotenv("../.env")  # root .env — fallback for everything else
 
