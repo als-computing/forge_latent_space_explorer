@@ -483,20 +483,23 @@ interface LatentSpaceEvent {
   autoencoder_model: string
   dimred_model: string
   experiment_name: string
+  timestamp: number
 }
 
 function LiveWorkspace({ config, infra, onStop }: { config: LiveConfig; infra: InfraState | null; onStop: () => void }) {
-  const [plotData, setPlotData]     = useState<FeatureVectorResponse | null>(null)
-  const [wsStatus, setWsStatus]     = useState<WsStatus>('connecting')
-  const [paused, setPaused]         = useState(false)
-  const [clearCount, setClearCount] = useState(0)
+  const [plotData, setPlotData]         = useState<FeatureVectorResponse | null>(null)
+  const [timestamps, setTimestamps]     = useState<number[]>([])
+  const [wsStatus, setWsStatus]         = useState<WsStatus>('connecting')
+  const [paused, setPaused]             = useState(false)
+  const [clearCount, setClearCount]     = useState(0)
   const [dataRevision, setDataRevision] = useState(0)
-  const [msgCount, setMsgCount]     = useState(0)   // total messages received
-  const [skipCount, setSkipCount]   = useState(0)   // messages filtered by model mismatch
-  const bufferRef  = useRef<number[][]>([])
-  const pausedRef  = useRef(false)
-  const msgRef     = useRef(0)
-  const skipRef    = useRef(0)
+  const [msgCount, setMsgCount]         = useState(0)   // total messages received
+  const [skipCount, setSkipCount]       = useState(0)   // messages filtered by model mismatch
+  const bufferRef    = useRef<number[][]>([])
+  const tsBufferRef  = useRef<number[]>([])
+  const pausedRef    = useRef(false)
+  const msgRef       = useRef(0)
+  const skipRef      = useRef(0)
 
   // Keep pausedRef in sync so the interval closure sees the latest value
   useEffect(() => { pausedRef.current = paused }, [paused])
@@ -519,6 +522,7 @@ function LiveWorkspace({ config, infra, onStop }: { config: LiveConfig; infra: I
                   return
               }
               bufferRef.current.push(msg.feature_vector)
+              tsBufferRef.current.push(msg.timestamp)
           } catch (err) {
               console.warn('[SSE] parse error', err)
           }
@@ -536,10 +540,12 @@ function LiveWorkspace({ config, infra, onStop }: { config: LiveConfig; infra: I
       }
       if (bufferRef.current.length === 0) return
       const batch = bufferRef.current.splice(0)
+      const tsBatch = tsBufferRef.current.splice(0)
       setPlotData(prev => {
         const existing = prev?.vectors ?? []
         return { vectors: [...existing, ...batch], n_components: batch[0].length }
       })
+      setTimestamps(prev => [...prev, ...tsBatch])
       setDataRevision(r => r + 1)
     }, DEBOUNCE_MS)
     return () => clearInterval(id)
@@ -577,7 +583,7 @@ function LiveWorkspace({ config, infra, onStop }: { config: LiveConfig; infra: I
         </div>
         <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
           <button
-            onClick={() => { bufferRef.current = []; setPlotData(null); setClearCount(c => c + 1) }}
+            onClick={() => { bufferRef.current = []; tsBufferRef.current = []; setPlotData(null); setTimestamps([]); setClearCount(c => c + 1) }}
             title="Clear plot"
             style={{ display: 'inline-flex', alignItems: 'center', gap: 5,
               background: 'transparent', color: 'var(--text)', border: '0.5px solid var(--border)',
@@ -614,6 +620,7 @@ function LiveWorkspace({ config, infra, onStop }: { config: LiveConfig; infra: I
           onDeselect={() => {}}
           clearCount={clearCount}
           dataRevision={dataRevision}
+          timestamps={timestamps}
         />
       </div>
 
