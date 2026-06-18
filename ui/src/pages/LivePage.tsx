@@ -5,10 +5,11 @@ import {
 } from 'lucide-react'
 import { fetchInfraHealth } from '../api/infra'
 import { fetchLiveModels, fetchLiveModelVersions } from '../api/jobs'
-import { startLive, stopLive } from '../api/live'
+import { fetchLiveHeatmap, startLive, stopLive } from '../api/live'
+import Heatmap from '../components/Heatmap'
 import ScatterPlot from '../components/ScatterPlot'
 import type { InfraState } from '../types/infra'
-import type { FeatureVectorResponse } from '../types/data'
+import type { DataProjectDict, FeatureVectorResponse, HeatmapResponse } from '../types/data'
 
 
 const DEBOUNCE_MS = 100
@@ -480,10 +481,59 @@ type WsStatus = 'connecting' | 'connected' | 'closed' | 'error'
 
 interface LatentSpaceEvent {
   feature_vector: number[]
+  tiled_url?: string
   autoencoder_model: string
   dimred_model: string
   experiment_name: string
   timestamp: number
+}
+
+interface TiledUrlInfo {
+  rootUri: string
+  uri: string
+  index: number
+}
+
+function parseTiledUrl(tiledUrl: string): TiledUrlInfo | null {
+  try {
+    const url = new URL(tiledUrl)
+    const pathParts = url.pathname.split('/').filter(p => p !== '')
+    let rootUri = url.origin
+    let uri = ''
+
+    const apiIndex = pathParts.findIndex((p, i) =>
+      p === 'api' &&
+      pathParts[i + 1] === 'v1' &&
+      (pathParts[i + 2] === 'metadata' ||
+        (pathParts[i + 2] === 'array' && ['full', 'block'].includes(pathParts[i + 3])))
+    )
+
+    if (apiIndex !== -1) {
+      const baseRootParts = pathParts[apiIndex + 2] === 'metadata'
+        ? pathParts.slice(0, apiIndex + 3)
+        : pathParts.slice(0, apiIndex + 4)
+      rootUri = `${url.protocol}//${url.host}/${baseRootParts.join('/')}`
+      uri = decodeURIComponent(pathParts.slice(baseRootParts.length).join('/'))
+    }
+
+    if (rootUri.includes('/api/v1/array/full')) {
+      rootUri = rootUri.replace('/api/v1/array/full', '/api/v1/metadata')
+    }
+
+    const sliceParam = new URLSearchParams(url.search).get('slice')
+    let index = 0
+    if (sliceParam) {
+      const first = sliceParam.split(',')[0]
+      const parsed = first.includes(':')
+        ? parseInt(first.split(':')[0], 10)
+        : parseInt(first, 10)
+      if (!isNaN(parsed)) index = parsed
+    }
+
+    return { rootUri, uri, index }
+  } catch {
+    return null
+  }
 }
 
 function LiveWorkspace({ config, infra, onStop }: { config: LiveConfig; infra: InfraState | null; onStop: () => void }) {
@@ -492,14 +542,25 @@ function LiveWorkspace({ config, infra, onStop }: { config: LiveConfig; infra: I
   const [wsStatus, setWsStatus]         = useState<WsStatus>('connecting')
   const [paused, setPaused]             = useState(false)
   const [clearCount, setClearCount]     = useState(0)
-  const [dataRevision, setDataRevision] = useState(0)
   const [msgCount, setMsgCount]         = useState(0)   // total messages received
   const [skipCount, setSkipCount]       = useState(0)   // messages filtered by model mismatch
-  const bufferRef    = useRef<number[][]>([])
-  const tsBufferRef  = useRef<number[]>([])
+  const [selectedIndices, setSelectedIndices] = useState<number[]>([])
+  const [heatmapResult, setHeatmapResult]     = useState<HeatmapResponse | null>(null)
+  const [heatmapLoading, setHeatmapLoading]   = useState(false)
+  const [heatmapError, setHeatmapError]       = useState<string | null>(null)
+  const [displayOption, setDisplayOption]     = useState<'mean' | 'std'>('mean')
+  const bufferRef         = useRef<number[][]>([])
+  const tsBufferRef       = useRef<number[]>([])
+  const tiledUrlBufRef    = useRef<string[]>([])
+  const liveIndicesRef    = useRef<number[]>([])
+  const dataProjectDictRef = useRef<DataProjectDict>({ root_uri: '', data_type: 'tiled', datasets: [], project_id: null })
+  const displayOptionRef      = useRef<'mean' | 'std'>('mean')
+  const selectedIndicesRef    = useRef<number[]>([])
   const pausedRef    = useRef(false)
   const msgRef       = useRef(0)
   const skipRef      = useRef(0)
+  displayOptionRef.current = displayOption
+  selectedIndicesRef.current = selectedIndices
 
   // Keep pausedRef in sync so the interval closure sees the latest value
   useEffect(() => { pausedRef.current = paused }, [paused])
@@ -523,6 +584,7 @@ function LiveWorkspace({ config, infra, onStop }: { config: LiveConfig; infra: I
               }
               bufferRef.current.push(msg.feature_vector)
               tsBufferRef.current.push(msg.timestamp)
+              tiledUrlBufRef.current.push(msg.tiled_url ?? '')
           } catch (err) {
               console.warn('[SSE] parse error', err)
           }
@@ -541,14 +603,94 @@ function LiveWorkspace({ config, infra, onStop }: { config: LiveConfig; infra: I
       if (bufferRef.current.length === 0) return
       const batch = bufferRef.current.splice(0)
       const tsBatch = tsBufferRef.current.splice(0)
+      const tiledBatch = tiledUrlBufRef.current.splice(0)
+
+      // Build data_project_dict and live_indices from tiled URLs
+      const dpd = dataProjectDictRef.current
+      for (const tiledUrl of tiledBatch) {
+        if (!tiledUrl) { liveIndicesRef.current.push(-1); continue }
+        const parsed = parseTiledUrl(tiledUrl)
+        if (!parsed) { liveIndicesRef.current.push(-1); continue }
+        const { rootUri, uri, index } = parsed
+        if (dpd.root_uri !== rootUri) { dpd.root_uri = rootUri; dpd.data_type = 'tiled' }
+        let currentCumulative: number
+        if (dpd.datasets.length === 0) {
+          currentCumulative = index
+          dpd.datasets.push({ uri, cumulative_data_count: index + 1 })
+        } else {
+          const existingIdx = dpd.datasets.findIndex(d => d.uri === uri)
+          if (existingIdx !== -1) {
+            const prevCum = existingIdx > 0 ? dpd.datasets[existingIdx - 1].cumulative_data_count! : 0
+            currentCumulative = prevCum + index
+            const newCum = Math.max(dpd.datasets[existingIdx].cumulative_data_count!, currentCumulative + 1)
+            if (newCum !== dpd.datasets[existingIdx].cumulative_data_count) {
+              dpd.datasets[existingIdx].cumulative_data_count = newCum
+              for (let j = existingIdx + 1; j < dpd.datasets.length; j++) {
+                dpd.datasets[j].cumulative_data_count = dpd.datasets[j - 1].cumulative_data_count! + 1
+              }
+            }
+          } else {
+            const lastCum = dpd.datasets[dpd.datasets.length - 1].cumulative_data_count!
+            currentCumulative = lastCum + index
+            dpd.datasets.push({ uri, cumulative_data_count: currentCumulative + 1 })
+          }
+        }
+        liveIndicesRef.current.push(currentCumulative)
+      }
+
       setPlotData(prev => {
         const existing = prev?.vectors ?? []
         return { vectors: [...existing, ...batch], n_components: batch[0].length }
       })
       setTimestamps(prev => [...prev, ...tsBatch])
-      setDataRevision(r => r + 1)
     }, DEBOUNCE_MS)
     return () => clearInterval(id)
+  }, [])
+
+  const handleSelect = useCallback(async (indices: number[]) => {
+    setSelectedIndices(indices)
+    if (indices.length === 0) return
+    const dpd = dataProjectDictRef.current
+    if (!dpd.datasets.length) return
+    const actualIndices = indices.map(i => liveIndicesRef.current[i]).filter(i => i !== undefined && i >= 0)
+    if (actualIndices.length === 0) return
+    setHeatmapError(null)
+    setHeatmapLoading(true)
+    try {
+      setHeatmapResult(await fetchLiveHeatmap({
+        data_project_dict: dpd,
+        selected_indices: actualIndices,
+        log_transform: false,
+        percentiles: [0, 100],
+        display_option: displayOptionRef.current,
+      }))
+    } catch (err) {
+      setHeatmapError(err instanceof Error ? err.message : 'Failed to load heatmap')
+    } finally {
+      setHeatmapLoading(false)
+    }
+  }, [])
+
+  const handleDeselect = useCallback(() => {
+    setSelectedIndices([])
+    setHeatmapResult(null)
+    setHeatmapError(null)
+  }, [])
+
+  const handleDisplayChange = useCallback(async (v: 'mean' | 'std') => {
+    setDisplayOption(v)
+    displayOptionRef.current = v
+    const current = selectedIndicesRef.current
+    const dpd = dataProjectDictRef.current
+    if (current.length === 0 || !dpd.datasets.length) return
+    const actualIndices = current.map(i => liveIndicesRef.current[i]).filter(i => i !== undefined && i >= 0)
+    if (actualIndices.length === 0) return
+    setHeatmapError(null)
+    setHeatmapLoading(true)
+    fetchLiveHeatmap({ data_project_dict: dpd, selected_indices: actualIndices, log_transform: false, percentiles: [0, 100], display_option: v })
+      .then(setHeatmapResult)
+      .catch(err => setHeatmapError(err instanceof Error ? err.message : 'Failed to load heatmap'))
+      .finally(() => setHeatmapLoading(false))
   }, [])
 
   const wsStatusPill = {
@@ -583,7 +725,13 @@ function LiveWorkspace({ config, infra, onStop }: { config: LiveConfig; infra: I
         </div>
         <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
           <button
-            onClick={() => { bufferRef.current = []; tsBufferRef.current = []; setPlotData(null); setTimestamps([]); setClearCount(c => c + 1) }}
+            onClick={() => {
+              bufferRef.current = []; tsBufferRef.current = []; tiledUrlBufRef.current = []
+              liveIndicesRef.current = []
+              dataProjectDictRef.current = { root_uri: '', data_type: 'tiled', datasets: [], project_id: null }
+              setPlotData(null); setTimestamps([]); setClearCount(c => c + 1)
+              setSelectedIndices([]); setHeatmapResult(null); setHeatmapError(null)
+            }}
             title="Clear plot"
             style={{ display: 'inline-flex', alignItems: 'center', gap: 5,
               background: 'transparent', color: 'var(--text)', border: '0.5px solid var(--border)',
@@ -612,16 +760,52 @@ function LiveWorkspace({ config, infra, onStop }: { config: LiveConfig; infra: I
         </div>
       </div>
 
-      {/* Scatter plot */}
-      <div style={{ flex: 1, minHeight: 0, borderRadius: 10, overflow: 'hidden' }}>
-        <ScatterPlot
-          data={plotData}
-          onSelect={() => {}}
-          onDeselect={() => {}}
-          clearCount={clearCount}
-          dataRevision={dataRevision}
-          timestamps={timestamps}
-        />
+      {/* Scatter + Heatmap */}
+      <div style={{ display: 'flex', flex: 1, minHeight: 0, gap: 10 }}>
+
+        {/* Scatter plot */}
+        <div style={{ flex: 1, minHeight: 0, borderRadius: 10, overflow: 'hidden' }}>
+          <ScatterPlot
+            data={plotData}
+            onSelect={handleSelect}
+            onDeselect={handleDeselect}
+            clearCount={clearCount}
+            dataRevision={0}
+            timestamps={timestamps}
+          />
+        </div>
+
+        {/* Selected Heatmap */}
+        <div style={{ flex: 1, minHeight: 0, borderRadius: 10, border: '0.5px solid var(--border)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <div style={{ height: 34, display: 'flex', alignItems: 'center', padding: '0 12px', borderBottom: '0.5px solid var(--border)', gap: 8, flexShrink: 0 }}>
+            <span style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.08em', color: 'var(--text)' }}>
+              Selected Heatmap
+            </span>
+            {selectedIndices.length > 0 && (
+              <span style={{ fontSize: 11, color: 'var(--text)', opacity: 0.6 }}>{selectedIndices.length} pts</span>
+            )}
+            {heatmapLoading && <span style={{ fontSize: 11, color: 'var(--text)', opacity: 0.5 }}>loading…</span>}
+            {heatmapError && <span style={{ fontSize: 11, color: '#ef4444' }}>{heatmapError}</span>}
+            <div style={{ marginLeft: 'auto', display: 'flex', gap: 0 }}>
+              {(['mean', 'std'] as const).map((v, i) => (
+                <button key={v} onClick={() => handleDisplayChange(v)} style={{
+                  padding: '3px 10px', fontSize: 11, cursor: 'pointer',
+                  background: displayOption === v ? 'var(--text)' : 'transparent',
+                  color: displayOption === v ? 'var(--bg)' : 'var(--text)',
+                  border: '0.5px solid var(--border)',
+                  borderLeft: i === 1 ? 'none' : undefined,
+                  borderRadius: i === 0 ? '4px 0 0 4px' : '0 4px 4px 0',
+                }}>
+                  {v === 'mean' ? 'Mean' : 'Std Dev'}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div style={{ flex: 1, minHeight: 0 }}>
+            <Heatmap result={heatmapResult} />
+          </div>
+        </div>
+
       </div>
 
       {/* Point count + service health strip */}

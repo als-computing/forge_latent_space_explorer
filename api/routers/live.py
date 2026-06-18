@@ -5,6 +5,7 @@ import websockets
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+from schemas.data import HeatmapRequest, HeatmapResponse
 from services import live_service
 
 ARROYO_HOST = os.getenv("ARROYO_HOST", "arroyo_xps")
@@ -42,12 +43,39 @@ def stop_live():
         raise HTTPException(status_code=502, detail=str(e))
 
 
+@router.post("/heatmap", response_model=HeatmapResponse)
+def compute_live_heatmap(req: HeatmapRequest):
+    try:
+        return live_service.compute_live_heatmap(req)
+    except Exception as e:
+        logger.exception("Failed to compute live heatmap")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/stream")
 async def stream():
+    try:
+        ws_check = await websockets.connect(ARROYO_WS)
+        await ws_check.close()
+    except Exception as e:
+        logger.exception("Cannot reach arroyo WebSocket at %s", ARROYO_WS)
+        raise HTTPException(status_code=502, detail=f"Arroyo unreachable: {e}")
+
     async def event_generator():
-        async with websockets.connect(ARROYO_WS) as ws:
-            async for message in ws:
-                yield f"data: {message}\n\n"
+        import asyncio
+
+        backoff = 1
+        while True:
+            try:
+                async with websockets.connect(ARROYO_WS) as ws:
+                    backoff = 1
+                    async for message in ws:
+                        yield f"data: {message}\n\n"
+            except Exception:
+                logger.exception("Live stream error, retrying in %ds", backoff)
+                yield f"event: reconnecting\ndata: retrying in {backoff}s\n\n"
+                await asyncio.sleep(backoff)
+                backoff = min(backoff * 2, 30)
 
     return StreamingResponse(
         event_generator(),
