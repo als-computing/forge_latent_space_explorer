@@ -6,19 +6,10 @@ import {
 import { fetchInfraHealth } from '../api/infra'
 import { fetchLiveModels, fetchLiveModelVersions } from '../api/jobs'
 import { startLive, stopLive } from '../api/live'
-import { WS_BASE } from '../api/base'
 import ScatterPlot from '../components/ScatterPlot'
 import type { InfraState } from '../types/infra'
 import type { FeatureVectorResponse } from '../types/data'
 
-// VITE_ARROYO_WS_URL can be set as a build arg to override (e.g. direct arroyo connection).
-// Default: route through the app's nginx proxy using the configured base path.
-const ARROYO_WS_URL: string =
-  (import.meta.env.VITE_ARROYO_WS_URL || null)
-  ?? (() => {
-    const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    return `${proto}//${window.location.host}${WS_BASE}/lse_operator`
-  })()
 
 const DEBOUNCE_MS = 100
 
@@ -510,36 +501,31 @@ function LiveWorkspace({ config, infra, onStop }: { config: LiveConfig; infra: I
   // Keep pausedRef in sync so the interval closure sees the latest value
   useEffect(() => { pausedRef.current = paused }, [paused])
 
-  // WebSocket connection
+  // EventSource connection
   useEffect(() => {
-    const url = ARROYO_WS_URL
-    console.debug('[LiveWS] connecting to', url)
-    const ws = new WebSocket(url)
-    const aeTag = `${config.autoencoderName}:${config.autoencoderVersion}`
-    const drTag = `${config.dimredName}:${config.dimredVersion}`
+      const es = new EventSource(`/api/v1/live/stream`)
+      const aeTag = `${config.autoencoderName}:${config.autoencoderVersion}`
+      const drTag = `${config.dimredName}:${config.dimredVersion}`
 
-    ws.onopen    = () => { console.debug('[LiveWS] connected'); setWsStatus('connected') }
-    ws.onerror   = (e) => { console.error('[LiveWS] error', e); setWsStatus('error') }
-    ws.onclose   = (e) => { console.debug('[LiveWS] closed', e.code, e.reason); setWsStatus('closed') }
-    ws.onmessage = (e) => {
-      if (pausedRef.current) return
-      msgRef.current += 1
-      try {
-        const msg: LatentSpaceEvent = JSON.parse(e.data)
-        console.debug('[LiveWS] msg ae=', msg.autoencoder_model, 'dr=', msg.dimred_model,
-          '| expected ae=', aeTag, 'dr=', drTag)
-        if (msg.autoencoder_model !== aeTag || msg.dimred_model !== drTag) {
-          skipRef.current += 1
-          return
-        }
-        bufferRef.current.push(msg.feature_vector)
-      } catch (err) {
-        console.warn('[LiveWS] parse error', err, e.data)
+      es.onopen    = () => setWsStatus('connected')
+      es.onerror   = () => setWsStatus('error')
+      es.onmessage = (e) => {
+          if (pausedRef.current) return
+          msgRef.current += 1
+          try {
+              const msg: LatentSpaceEvent = JSON.parse(e.data)
+              if (msg.autoencoder_model !== aeTag || msg.dimred_model !== drTag) {
+                  skipRef.current += 1
+                  return
+              }
+              bufferRef.current.push(msg.feature_vector)
+          } catch (err) {
+              console.warn('[SSE] parse error', err)
+          }
       }
-    }
-
-    return () => ws.close()
+      return () => es.close()
   }, [config.autoencoderName, config.autoencoderVersion, config.dimredName, config.dimredVersion])
+
 
   // Drain buffer + counters into state every DEBOUNCE_MS
   useEffect(() => {

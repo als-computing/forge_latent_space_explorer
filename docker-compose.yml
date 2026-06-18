@@ -305,6 +305,29 @@ services:
     networks:
       mle_net:
 
+  # Simulator 0: Lightweight external arroyo simulator (no arroyo/Tiled deps)
+  # Mimics arroyo_sas_bluesky as an external service for testing the SSE pipeline.
+  # Configure model tags to match what you select in the UI preflight.
+  # docker compose --profile sim_external up sim_external_arroyo
+  sim_external_arroyo:
+    image: python:3.11-slim
+    container_name: sim_external_arroyo
+    command: >
+      sh -c "pip install websockets redis --quiet && python /app/simulator/external_arroyo_sim.py"
+    profiles:
+      - sim_external
+    volumes:
+      - .:/app:ro
+    ports:
+      - 127.0.0.1:8765:8765
+    environment:
+      - REDIS_HOST=${REDIS_HOST:-kvrocks}
+      - REDIS_PORT=${REDIS_PORT:-6666}
+      - SIM_EXPERIMENT_NAME=${SIM_EXPERIMENT_NAME:-sim_experiment}
+      - SIM_INTERVAL_MS=${SIM_INTERVAL_MS:-200}
+    networks:
+      mle_net:
+
   #Simulator 1: f_vec simulator service
   arroyo_vec_sim:
     command: python -m simulator.websocket_simulator
