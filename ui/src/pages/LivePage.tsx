@@ -565,31 +565,67 @@ function LiveWorkspace({ config, infra, onStop }: { config: LiveConfig; infra: I
   // Keep pausedRef in sync so the interval closure sees the latest value
   useEffect(() => { pausedRef.current = paused }, [paused])
 
-  // EventSource connection
+  // EventSource connection with manual retry for HTTP errors (e.g. 520).
+  // The browser auto-retries on network drops but permanently closes on non-2xx
+  // responses, so we detect CLOSED state in onerror and reconnect with backoff.
   useEffect(() => {
-      const es = new EventSource(`/api/v1/live/stream`)
-      const aeTag = `${config.autoencoderName}:${config.autoencoderVersion}`
-      const drTag = `${config.dimredName}:${config.dimredVersion}`
+    const aeTag = `${config.autoencoderName}:${config.autoencoderVersion}`
+    const drTag = `${config.dimredName}:${config.dimredVersion}`
 
-      es.onopen    = () => setWsStatus('connected')
-      es.onerror   = () => setWsStatus('error')
-      es.onmessage = (e) => {
-          if (pausedRef.current) return
-          msgRef.current += 1
-          try {
-              const msg: LatentSpaceEvent = JSON.parse(e.data)
-              if (msg.autoencoder_model !== aeTag || msg.dimred_model !== drTag) {
-                  skipRef.current += 1
-                  return
-              }
-              bufferRef.current.push(msg.feature_vector)
-              tsBufferRef.current.push(msg.timestamp)
-              tiledUrlBufRef.current.push(msg.tiled_url ?? '')
-          } catch (err) {
-              console.warn('[SSE] parse error', err)
-          }
+    let es: EventSource | null = null
+    let retryTimer: ReturnType<typeof setTimeout> | null = null
+    let backoffMs = 1_000
+    let cancelled = false
+
+    function connect() {
+      if (cancelled) return
+      setWsStatus('connecting')
+      es = new EventSource('/api/v1/live/stream')
+
+      es.onopen = () => {
+        backoffMs = 1_000
+        setWsStatus('connected')
       }
-      return () => es.close()
+
+      es.onerror = () => {
+        if (cancelled) return
+        setWsStatus('error')
+        if (es?.readyState === EventSource.CLOSED) {
+          // HTTP error or permanent failure — browser won't retry automatically
+          es = null
+          retryTimer = setTimeout(() => {
+            backoffMs = Math.min(backoffMs * 2, 30_000)
+            connect()
+          }, backoffMs)
+        }
+        // else: transient network blip — browser is already retrying (CONNECTING)
+      }
+
+      es.onmessage = (e) => {
+        if (pausedRef.current) return
+        msgRef.current += 1
+        try {
+          const msg: LatentSpaceEvent = JSON.parse(e.data)
+          if (msg.autoencoder_model !== aeTag || msg.dimred_model !== drTag) {
+            skipRef.current += 1
+            return
+          }
+          bufferRef.current.push(msg.feature_vector)
+          tsBufferRef.current.push(msg.timestamp)
+          tiledUrlBufRef.current.push(msg.tiled_url ?? '')
+        } catch (err) {
+          console.warn('[SSE] parse error', err)
+        }
+      }
+    }
+
+    connect()
+
+    return () => {
+      cancelled = true
+      if (retryTimer) clearTimeout(retryTimer)
+      es?.close()
+    }
   }, [config.autoencoderName, config.autoencoderVersion, config.dimredName, config.dimredVersion])
 
 
