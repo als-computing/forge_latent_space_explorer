@@ -2,7 +2,6 @@ import asyncio
 import logging
 import os
 import re
-from datetime import datetime
 from urllib.parse import urlparse
 
 import numpy as np
@@ -33,7 +32,7 @@ class XPSTiledLocalImagePublisher(Publisher):
         # Dictionary to track array clients for each UUID
         self.array_clients = {}  # {uuid: ArrayClient}
 
-        logger.info(f"Initialized XPSTiledLocalImagePublisher with patch-based updates")
+        logger.info("Initialized XPSTiledLocalImagePublisher with patch-based updates")
         logger.info(f"Using tiled prefix: {self.tiled_prefix}")
 
     async def start(self):
@@ -61,8 +60,10 @@ class XPSTiledLocalImagePublisher(Publisher):
     def _parse_path_from_url(self, url):
         """Extract the container path from tiled_url.
 
-        Example URL (old): http://tiled:8000/api/v1/array/full/prefix/lse_live_results/user/daily_run/exp/uuid/xps_averaged_heatmaps?slice=...
-        Example URL (new): http://tiled:8000/api/v1/array/full/prefix/lse_live_results/2025/01/15/exp/uuid/xps_averaged_heatmaps?slice=...
+        Example URL (old):
+            http://tiled:8000/api/v1/array/full/prefix/lse_live_results/user/daily_run/exp/uuid/xps_averaged_heatmaps?slice=...
+        Example URL (new):
+            http://tiled:8000/api/v1/array/full/prefix/lse_live_results/2025/01/15/exp/uuid/xps_averaged_heatmaps?slice=...
         Returns: ['prefix', 'lse_live_results', '2025', '01', '15', 'exp', 'uuid']
         """
         parsed_url = urlparse(url)
@@ -207,7 +208,7 @@ class XPSTiledLocalImagePublisher(Publisher):
 
             # For the first frame (frame 0), we already wrote initial data, so skip patch
             if frame_number == 0:
-                logger.info(f"[FRAME 0] Initialized 3D array for UUID")
+                logger.info("[FRAME 0] Initialized 3D array for UUID")
                 return tiled_url
 
             # Patch (append) the new frame

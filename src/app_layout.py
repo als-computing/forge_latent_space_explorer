@@ -26,7 +26,7 @@ if DATA_TILED_KEY == "":
 LIVE_TILED_API_KEY = os.getenv("LIVE_TILED_API_KEY", None)
 if LIVE_TILED_API_KEY == "":
     LIVE_TILED_API_KEY = None
-    
+
 MODE = os.getenv("MODE", "dev")
 PREFECT_TAGS = json.loads(os.getenv("PREFECT_TAGS", '["latent-space-explorer"]'))
 USER = os.getenv("USER")
@@ -63,7 +63,8 @@ file_explorer = dash_file_explorer.file_explorer
 
 # GET MODELS
 latent_space_models = Models(
-    modelfile_path="./src/assets/default_models.json", model_type="latent_space_extraction"
+    modelfile_path="./src/assets/default_models.json",
+    model_type="latent_space_extraction",
 )
 
 dim_reduction_models = Models(
@@ -148,7 +149,11 @@ app.layout = html.Div(
                             color="white",
                             spinner_style={"width": "4rem", "height": "4rem"},
                         ),
-                        html.H2("Loading Models...", id="model-loading-spinner-text", className="mt-3")
+                        html.H2(
+                            "Loading Models...",
+                            id="model-loading-spinner-text",
+                            className="mt-3",
+                        ),
                     ],
                     style={
                         "position": "absolute",
@@ -157,8 +162,8 @@ app.layout = html.Div(
                         "transform": "translate(-50%, -50%)",
                         "textAlign": "center",
                         "color": "white",
-                        "zIndex": 9999
-                    }
+                        "zIndex": 9999,
+                    },
                 )
             ],
             id="model-loading-spinner",
@@ -170,8 +175,8 @@ app.layout = html.Div(
                 "height": "100%",
                 "backgroundColor": "rgba(0, 0, 0, 0.7)",
                 "zIndex": 9998,
-                "display": "none"
-            }
+                "display": "none",
+            },
         ),
         header(
             "MLExchange | Latent Space Explorer",

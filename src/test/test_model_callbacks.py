@@ -1,18 +1,9 @@
-# src/test/test_model_callbacks.py
-from unittest.mock import MagicMock, patch
-
-import pytest
-from dash.exceptions import PreventUpdate
+from unittest.mock import patch
 
 from src.callbacks.live_mode import (
     handle_model_continue,
     reset_update_button,
     update_live_models,
-)
-from src.test.test_utils import (
-    mock_live_mode_mlflow_client,
-    mock_logger,
-    mock_redis_store,
 )
 
 
@@ -34,7 +25,7 @@ class TestModelCallbacks:
 
         # Configure compatibility check
         mock_live_mode_mlflow_client.check_model_compatibility.return_value = True
-        
+
         # Mock get_model_versions to return version options
         mock_live_mode_mlflow_client.get_model_versions.return_value = [
             {"label": "Version 3", "value": "3"}
@@ -61,14 +52,16 @@ class TestModelCallbacks:
         # Main verification: Redis calls with version identifiers
         expected_auto = f"{selected_auto}:{auto_version}"
         expected_dimred = f"{selected_dimred}:{dimred_version}"
-        
+
         mock_redis_store.store_autoencoder_model.assert_called_once_with(expected_auto)
         mock_redis_store.store_dimred_model.assert_called_once_with(expected_dimred)
-        mock_redis_store.store_experiment_name.assert_called_once_with(experiment_name)  # ADD THIS LINE
-        
+        mock_redis_store.store_experiment_name.assert_called_once_with(
+            experiment_name
+        )  # ADD THIS LINE
+
         # Verify dialog closed (first result should be False)
         assert results[0] is False
-        
+
         # Verify selected_models dict is at index 1 with versions
         selected_models = results[1]
         assert selected_models["autoencoder"] == selected_auto
@@ -95,7 +88,7 @@ class TestModelCallbacks:
         mock_live_mode_mlflow_client.check_model_compatibility.return_value = False
 
         # Execute
-        result = handle_model_continue(
+        handle_model_continue(
             continue_clicks,
             experiment_name,  # ADD THIS LINE
             selected_auto,
@@ -132,23 +125,28 @@ class TestModelCallbacks:
 
             # Execute
             results = update_live_models(
-                n_clicks, autoencoder, auto_version, dimred, dimred_version, data_project_dict
+                n_clicks,
+                autoencoder,
+                auto_version,
+                dimred,
+                dimred_version,
+                data_project_dict,
             )
 
         # Main verification: Redis calls with version identifiers
         expected_auto = f"{autoencoder}:{auto_version}"
         expected_dimred = f"{dimred}:{dimred_version}"
-        
+
         mock_redis_store.store_autoencoder_model.assert_called_once_with(expected_auto)
         mock_redis_store.store_dimred_model.assert_called_once_with(expected_dimred)
-        
+
         # Verify selected_models is at index 0 with versions
         selected_models = results[0]
         assert selected_models["autoencoder"] == autoencoder
         assert selected_models["autoencoder_version"] == auto_version
         assert selected_models["dimred"] == dimred
         assert selected_models["dimred_version"] == dimred_version
-        
+
         # Verify data_project_dict at index 1 contains live_models
         data_proj = results[1]
         assert "live_models" in data_proj
@@ -176,7 +174,12 @@ class TestModelCallbacks:
         ):
 
             results = update_live_models(
-                n_clicks, autoencoder, auto_version, dimred, dimred_version, data_project_dict
+                n_clicks,
+                autoencoder,
+                auto_version,
+                dimred,
+                dimred_version,
+                data_project_dict,
             )
 
         # Verify error handling - index 2 is button color, index 3 is button text
@@ -197,7 +200,7 @@ class TestModelCallbacks:
             "autoencoder": "old_autoencoder",
             "dimred": "old_dimred",
             "autoencoder_version": "1",
-            "dimred_version": "1"
+            "dimred_version": "1",
         }
 
         # Configure compatibility check
@@ -218,7 +221,7 @@ class TestModelCallbacks:
             "autoencoder": "test_autoencoder",
             "dimred": "test_dimred",
             "autoencoder_version": "3",
-            "dimred_version": "2"
+            "dimred_version": "2",
         }
         result_disabled, result_color, result_text = reset_update_button(
             autoencoder, auto_version, dimred, dimred_version, selected_models_same

@@ -3,12 +3,11 @@ import os
 import socket
 from datetime import datetime
 from urllib.parse import urlparse
+from zoneinfo import ZoneInfo
 
 import httpx
 import websocket
 from mlex_utils.mlflow_utils.mlflow_model_client import MLflowModelClient
-from zoneinfo import ZoneInfo
-
 from schemas.infra import InfraState
 
 logger = logging.getLogger(__name__)
@@ -20,7 +19,9 @@ ARROYO_HOST = os.getenv("ARROYO_HOST", "arroyo_xps")
 ARROYO_PORT = int(os.getenv("ARROYO_PORT", "8765"))
 # DATA_SOURCE_URL is the upstream data feed (XPS WebSocket or SAS ZMQ address).
 # Supports ws://, wss://, and tcp:// schemes — all probed as a TCP connection.
-DATA_SOURCE_URL = os.getenv("DATA_SOURCE_URL", "ws://timepix_processor:8001/xps_operator")
+DATA_SOURCE_URL = os.getenv(
+    "DATA_SOURCE_URL", "ws://timepix_processor:8001/xps_operator"
+)
 
 
 def _check_data_source_ready() -> tuple[bool, str | None]:
@@ -51,7 +52,11 @@ def _check_arroyo_ready() -> tuple[bool, str | None]:
 
 def _check_tiled_ready() -> bool:
     try:
-        headers = {"Authorization": f"Bearer {RESULTS_TILED_API_KEY}"} if RESULTS_TILED_API_KEY else {}
+        headers = (
+            {"Authorization": f"Bearer {RESULTS_TILED_API_KEY}"}
+            if RESULTS_TILED_API_KEY
+            else {}
+        )
         httpx.get(RESULTS_TILED_URI, headers=headers, timeout=5.0)
         return True
     except Exception:

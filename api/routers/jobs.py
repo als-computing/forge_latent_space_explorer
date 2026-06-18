@@ -2,9 +2,6 @@ import logging
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Query
-
-logger = logging.getLogger(__name__)
-
 from schemas.jobs import (
     ClusteringJobRequest,
     FlowRunOption,
@@ -15,6 +12,8 @@ from schemas.jobs import (
     ModelVersionOption,
 )
 from services import jobs_service
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -29,7 +28,9 @@ def list_mlflow_models():
 
 
 @router.get("/live-models", response_model=list[MlflowModelOption])
-def list_live_models(model_type: Literal["autoencoder", "dimension_reduction"] = Query(...)):
+def list_live_models(
+    model_type: Literal["autoencoder", "dimension_reduction"] = Query(...),
+):
     try:
         return jobs_service.get_live_models(model_type)
     except Exception as e:
@@ -37,7 +38,9 @@ def list_live_models(model_type: Literal["autoencoder", "dimension_reduction"] =
         raise HTTPException(status_code=502, detail=str(e))
 
 
-@router.get("/live-models/{model_name}/versions", response_model=list[ModelVersionOption])
+@router.get(
+    "/live-models/{model_name}/versions", response_model=list[ModelVersionOption]
+)
 def list_live_model_versions(model_name: str):
     try:
         return jobs_service.get_live_model_versions(model_name)

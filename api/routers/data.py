@@ -1,7 +1,6 @@
 import logging
 
 from fastapi import APIRouter, HTTPException
-
 from schemas.data import (
     BrowseFilesystemRequest,
     BrowseTiledRequest,
@@ -51,7 +50,9 @@ def list_tiled_node(base_uri: str, node_path: str = ""):
     try:
         return data_service.list_tiled_node(base_uri, node_path)
     except Exception as e:
-        logger.exception("Failed to list Tiled node (base_uri=%s, node_path=%s)", base_uri, node_path)
+        logger.exception(
+            "Failed to list Tiled node (base_uri=%s, node_path=%s)", base_uri, node_path
+        )
         raise HTTPException(status_code=502, detail=str(e))
 
 
@@ -78,14 +79,20 @@ def get_feature_vectors(latent_space_job_id: str, project_name: str = ""):
     try:
         return data_service.get_feature_vectors(latent_space_job_id, project_name)
     except Exception as e:
-        logger.exception("Failed to get feature vectors for job %s", latent_space_job_id)
+        logger.exception(
+            "Failed to get feature vectors for job %s", latent_space_job_id
+        )
         raise HTTPException(status_code=502, detail=str(e))
 
 
 @router.get("/clusters", response_model=ClusterResponse)
-def get_clusters(clustering_job_id: str, project_name: str = "", latent_space_job_id: str = ""):
+def get_clusters(
+    clustering_job_id: str, project_name: str = "", latent_space_job_id: str = ""
+):
     try:
-        return data_service.get_clusters(clustering_job_id, project_name, latent_space_job_id)
+        return data_service.get_clusters(
+            clustering_job_id, project_name, latent_space_job_id
+        )
     except Exception as e:
         logger.exception("Failed to get clusters for job %s", clustering_job_id)
         raise HTTPException(status_code=502, detail=str(e))
@@ -101,13 +108,22 @@ def get_overview(req: OverviewRequest):
 
 
 @router.get("/data-project-dict", response_model=DataProjectDictResponse)
-def get_data_project_dict(dimension_reduction_job_id: str = "", clustering_job_id: str = ""):
+def get_data_project_dict(
+    dimension_reduction_job_id: str = "", clustering_job_id: str = ""
+):
     try:
         if dimension_reduction_job_id:
-            return data_service.get_data_project_dict_from_job(dimension_reduction_job_id)
+            return data_service.get_data_project_dict_from_job(
+                dimension_reduction_job_id
+            )
         elif clustering_job_id:
-            return data_service.get_data_project_dict_from_clustering_job(clustering_job_id)
-        raise HTTPException(status_code=400, detail="Provide dimension_reduction_job_id or clustering_job_id")
+            return data_service.get_data_project_dict_from_clustering_job(
+                clustering_job_id
+            )
+        raise HTTPException(
+            status_code=400,
+            detail="Provide dimension_reduction_job_id or clustering_job_id",
+        )
     except HTTPException:
         raise
     except Exception as e:

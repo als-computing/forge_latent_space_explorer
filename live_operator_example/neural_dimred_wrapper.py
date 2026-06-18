@@ -4,7 +4,6 @@ Provides functionality to load a neural dimensionality reduction model and regis
 """
 
 import os
-import sys
 import time
 import traceback
 from datetime import datetime
@@ -24,6 +23,7 @@ def get_file_size_mb(filepath):
 
 class SimpleDimRedApproximator(torch.nn.Module):
     """PyTorch neural network that approximates dimensionality reduction"""
+
     def __init__(self, input_dim, hidden_dims=[128, 64], output_dim=2):
         super().__init__()
         layers = []
@@ -68,11 +68,13 @@ class NeuralDimRedWrapper(mlflow.pyfunc.PythonModel):
             self.scaler = None
 
         # Initialize model
-        print(f"Initializing Neural DimRed with input_dim={self.input_dim}, output_dim={self.output_dim}")
+        print(
+            f"Initializing Neural DimRed with input_dim={self.input_dim}, output_dim={self.output_dim}"
+        )
         self.model = SimpleDimRedApproximator(
             input_dim=self.input_dim,
             hidden_dims=self.hidden_dims,
-            output_dim=self.output_dim
+            output_dim=self.output_dim,
         )
 
         # Check for CUDA availability and set device
@@ -86,24 +88,28 @@ class NeuralDimRedWrapper(mlflow.pyfunc.PythonModel):
         # Load weights
         try:
             # Handle both state_dict and full model saves
-            if model_path.endswith('.pth') or model_path.endswith('.pt'):
+            if model_path.endswith(".pth") or model_path.endswith(".pt"):
                 state_dict = torch.load(model_path, map_location=self.device)
                 # Check if it's just the state dict or full model
                 if isinstance(state_dict, dict) and "network.0.weight" in state_dict:
                     # Direct state dict
                     self.model.load_state_dict(state_dict)
-                elif isinstance(state_dict, dict) and 'model_state_dict' in state_dict:
+                elif isinstance(state_dict, dict) and "model_state_dict" in state_dict:
                     # Checkpoint format
-                    self.model.load_state_dict(state_dict['model_state_dict'])
-                elif hasattr(state_dict, 'state_dict'):
+                    self.model.load_state_dict(state_dict["model_state_dict"])
+                elif hasattr(state_dict, "state_dict"):
                     # Full model
                     self.model.load_state_dict(state_dict.state_dict())
                 else:
-                    raise ValueError(f"Unexpected format in weights file: {type(state_dict)}")
+                    raise ValueError(
+                        f"Unexpected format in weights file: {type(state_dict)}"
+                    )
             else:
                 raise ValueError(f"Unsupported model format: {model_path}")
-            
-            print("✅ Neural dimensionality reduction model weights loaded successfully")
+
+            print(
+                "✅ Neural dimensionality reduction model weights loaded successfully"
+            )
         except Exception as e:
             print(f"⚠️ Error loading model weights: {e}")
             traceback.print_exc()
@@ -125,7 +131,9 @@ class NeuralDimRedWrapper(mlflow.pyfunc.PythonModel):
             Dictionary with coordinates
         """
         if self.model is None:
-            raise RuntimeError("Neural dimensionality reduction model not loaded. Call load_context first.")
+            raise RuntimeError(
+                "Neural dimensionality reduction model not loaded. Call load_context first."
+            )
 
         # Validate input
         if not isinstance(model_input, np.ndarray):
@@ -135,7 +143,7 @@ class NeuralDimRedWrapper(mlflow.pyfunc.PythonModel):
         if len(model_input.shape) > 2:
             # Flatten all dimensions except the first (batch)
             model_input = model_input.reshape(model_input.shape[0], -1)
-        
+
         # Ensure input matches expected dimension
         if model_input.shape[1] != self.input_dim:
             raise ValueError(
@@ -215,7 +223,11 @@ def save_neural_dimred_model_with_wrapper(
 
         # Get file sizes
         weights_size = get_file_size_mb(model_config["weights_path"])
-        scaler_size = get_file_size_mb(model_config.get("scaler_path", "")) if scaler_exists else 0
+        scaler_size = (
+            get_file_size_mb(model_config.get("scaler_path", ""))
+            if scaler_exists
+            else 0
+        )
         print(f"\nWeights file size: {weights_size:.1f} MB")
         if scaler_exists:
             print(f"Scaler file size: {scaler_size:.1f} MB")
@@ -223,7 +235,7 @@ def save_neural_dimred_model_with_wrapper(
         try:
             # Get model parameters
             input_dim = model_config.get("input_dim", 512)
-            
+
             # Create model wrapper with default hidden_dims and output_dim
             neural_dimred_wrapper = NeuralDimRedWrapper(input_dim=input_dim)
 
@@ -234,11 +246,11 @@ def save_neural_dimred_model_with_wrapper(
                 "weights_size_mb": weights_size,
                 "using_wrapper": True,
                 "input_dim": input_dim,
-                "has_scaler": scaler_exists
+                "has_scaler": scaler_exists,
             }
             if scaler_exists:
                 params["scaler_size_mb"] = scaler_size
-            
+
             mlflow.log_params(params)
 
             # Set tags
@@ -257,12 +269,14 @@ def save_neural_dimred_model_with_wrapper(
                 "numpy",
                 "scikit-learn",
                 "joblib",
-                "mlflow==2.22.0"
+                "mlflow==2.22.0",
             ]
 
             # Log the neural dimensionality reduction model wrapper
             try:
-                print("\nLogging neural dimensionality reduction model wrapper to MLflow...")
+                print(
+                    "\nLogging neural dimensionality reduction model wrapper to MLflow..."
+                )
                 mlflow.pyfunc.log_model(
                     artifact_path="model",
                     python_model=neural_dimred_wrapper,
@@ -275,7 +289,9 @@ def save_neural_dimred_model_with_wrapper(
                     f"✅ Neural dimensionality reduction model wrapper registered as '{model_name}'"
                 )
             except Exception as e:
-                print(f"⚠️ Error logging neural dimensionality reduction model wrapper: {e}")
+                print(
+                    f"⚠️ Error logging neural dimensionality reduction model wrapper: {e}"
+                )
                 traceback.print_exc()
                 return None, None
 

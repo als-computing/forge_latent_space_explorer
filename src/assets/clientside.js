@@ -96,7 +96,7 @@ window.dash_clientside = Object.assign({}, window.dash_clientside, {
                             // Construct full identifiers from selected_models
                             let current_autoencoder_id = selected_models.autoencoder;
                             let current_dimred_id = selected_models.dimred;
-                            
+
                             // Add version if available
                             if (selected_models.autoencoder_version) {
                                 current_autoencoder_id = `${selected_models.autoencoder}:${selected_models.autoencoder_version}`;
@@ -104,7 +104,7 @@ window.dash_clientside = Object.assign({}, window.dash_clientside, {
                             if (selected_models.dimred_version) {
                                 current_dimred_id = `${selected_models.dimred}:${selected_models.dimred_version}`;
                             }
-                            
+
                             log.debug("Current selected model IDs - Autoencoder:", current_autoencoder_id, "Dimred:", current_dimred_id);
 
                             // Skip buffer entries from different model versions
@@ -182,9 +182,9 @@ window.dash_clientside = Object.assign({}, window.dash_clientside, {
 
                         if (sliceParam) {
                             // Expecting format like "0,0,:,:" or "0:1,0:1679,0:1475"
-                            const sliceParts = sliceParam.split(','); 
+                            const sliceParts = sliceParam.split(',');
                             const firstSliceParts = sliceParts[0];
-                            
+
                             if (firstSliceParts.includes(':')) {
                                 // New format: extract the first number before the colon (e.g., "0" from "0:1")
                                 const startIndex = parseInt(firstSliceParts.split(':')[0], 10);
@@ -205,7 +205,7 @@ window.dash_clientside = Object.assign({}, window.dash_clientside, {
                         }
 
                         log.debug("Root URI:", root_uri, "URI:", uri, "Index:", index);
-                        
+
                         // Change root_uri from /api/v1/array/full to /api/v1/metadata
                         if (root_uri.includes('/api/v1/array/full')) {
                             root_uri = root_uri.replace('/api/v1/array/full', '/api/v1/metadata');

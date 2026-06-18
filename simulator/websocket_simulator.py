@@ -4,13 +4,13 @@ import logging
 import numpy as np
 import typer
 
-from .data_simulator import stream
 from src.arroyo_reduction.publisher import LSEWSResultPublisher
 from src.arroyo_reduction.schemas import LatentSpaceEvent
 
+from .data_simulator import stream
+
 app = typer.Typer()
 logger = logging.getLogger("arroyo_reduction")
-
 
 
 def setup_logger(logger: logging.Logger, log_level: str = "INFO"):
@@ -22,10 +22,13 @@ def setup_logger(logger: logging.Logger, log_level: str = "INFO"):
     logger.setLevel(log_level.upper())
     logger.debug("DEBUG LOGGING SET")
 
+
 setup_logger(logger)
+
 
 def get_feature_vectors(num_messages):
     return 5 * np.random.rand(num_messages, 2)
+
 
 class DummyWSPublisher(LSEWSResultPublisher):
 
@@ -36,8 +39,6 @@ class DummyWSPublisher(LSEWSResultPublisher):
     async def start(self) -> None:
         logger.info("DummyWSPublisher started, but does nothing.")
         await super().start()
-
-    
 
 
 @app.command()

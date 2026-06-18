@@ -6,7 +6,9 @@ from schemas.models import Model
 
 logger = logging.getLogger(__name__)
 
-_MODELS_FILE = Path(__file__).parent.parent.parent / "src" / "assets" / "default_models.json"
+_MODELS_FILE = (
+    Path(__file__).parent.parent.parent / "src" / "assets" / "default_models.json"
+)
 
 
 def get_models(model_type: str | None = None) -> list[Model]:

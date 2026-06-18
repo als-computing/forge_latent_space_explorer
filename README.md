@@ -6,7 +6,7 @@ An application for visualizing latent vectors in **2D or 3D** using **PCA** and 
 
 The **Prefect server, Tiled server, the application, and the Prefect worker job** all run within a **single Docker container**. This eliminates the need to start the servers separately.
 
-However, the **Prefect worker** must be run separately on your local machine (refer to step 5). 
+However, the **Prefect worker** must be run separately on your local machine (refer to step 5).
 
 ## Steps to Run the Application
 
@@ -143,7 +143,7 @@ There are two main types of simulators available:
         - Reads images from a public Tiled dataset and sends them to Arroyo.
         - In .env, set:
           ```
-          SIM_MODE="direct" 
+          SIM_MODE="direct"
           LIVE_TILED_API_KEY=
           ```
 
@@ -160,7 +160,7 @@ There are two main types of simulators available:
           ```
         - In .env, set:
             ```
-            SIM_MODE="db_replay" 
+            SIM_MODE="db_replay"
             LIVE_TILED_API_KEY=<nsls-ii-tiled-key>
             ```
 
@@ -173,7 +173,7 @@ There are two main types of simulators available:
             ```
         - In .env, set:
             ```
-            SIM_MODE="local_tiled" 
+            SIM_MODE="local_tiled"
             LIVE_TILED_API_KEY=<local-tiled-key>
             ```
 

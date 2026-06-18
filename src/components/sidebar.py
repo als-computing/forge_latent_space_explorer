@@ -88,11 +88,17 @@ def sidebar(file_explorer, job_manager, clustering_job_manager):
                                     children=[
                                         html.Div(
                                             [
-                                                html.Strong("Experiment: ", style={"color": "#00313C"}),
+                                                html.Strong(
+                                                    "Experiment: ",
+                                                    style={"color": "#00313C"},
+                                                ),
                                                 html.Span(
                                                     id="live-experiment-name-text",
                                                     children="",
-                                                    style={"color": "#D57800", "fontWeight": "500"}
+                                                    style={
+                                                        "color": "#D57800",
+                                                        "fontWeight": "500",
+                                                    },
                                                 ),
                                             ],
                                             style={
@@ -100,11 +106,13 @@ def sidebar(file_explorer, job_manager, clustering_job_manager):
                                                 "backgroundColor": "#f8f9fa",
                                                 "borderRadius": "5px",
                                                 "marginBottom": "15px",
-                                                "border": "1px solid #dee2e6"
-                                            }
+                                                "border": "1px solid #dee2e6",
+                                            },
                                         ),
                                     ],
-                                    style={"display": "none"}  # Hidden by default, shown in live mode
+                                    style={
+                                        "display": "none"
+                                    },  # Hidden by default, shown in live mode
                                 ),
                                 ControlItem(
                                     "Autoencoder Model",
@@ -154,22 +162,22 @@ def sidebar(file_explorer, job_manager, clustering_job_manager):
                                         html.Div(
                                             [
                                                 DashIconify(
-                                                    icon="lucide:alert-circle", 
-                                                    width=20, 
+                                                    icon="lucide:alert-circle",
+                                                    width=20,
                                                     height=20,
-                                                    style={"marginRight": "5px"}
+                                                    style={"marginRight": "5px"},
                                                 ),
                                                 html.Span(
                                                     "Updating models will refresh panels and data will be lost.",
-                                                    style={"fontSize": "0.9rem"}
+                                                    style={"fontSize": "0.9rem"},
                                                 ),
                                             ],
                                             style={
-                                                "display": "flex", 
-                                                "alignItems": "center", 
+                                                "display": "flex",
+                                                "alignItems": "center",
                                                 "color": "#6c757d",  # Gray color (Bootstrap secondary)
-                                                "marginBottom": "10px"
-                                            }
+                                                "marginBottom": "10px",
+                                            },
                                         ),
                                         dbc.Button(
                                             "Update Models",
@@ -181,7 +189,9 @@ def sidebar(file_explorer, job_manager, clustering_job_manager):
                                     ]
                                 ),
                             ],
-                            style={"display": "none"},  # Hidden by default (offline mode)
+                            style={
+                                "display": "none"
+                            },  # Hidden by default (offline mode)
                         ),
                         dbc.AccordionItem(
                             id="dimension-reduction-controls",
@@ -268,113 +278,140 @@ def sidebar(file_explorer, job_manager, clustering_job_manager):
                                 ControlItem(
                                     "Select Date",
                                     "date-picker-title",
-                                    html.Div([
-                                        dbc.Row([
-                                            dbc.Col(
-                                                html.Div([
-                                                    dcc.DatePickerSingle(
-                                                        id="replay-date-picker",
-                                                        placeholder="Select a date",
-                                                        display_format="YYYY-MM-DD",
-                                                        date=None,
-                                                        disabled=False,
-                                                        calendar_orientation="horizontal",
-                                                        with_portal=False,
-                                                        number_of_months_shown=1,
+                                    html.Div(
+                                        [
+                                            dbc.Row(
+                                                [
+                                                    dbc.Col(
+                                                        html.Div(
+                                                            [
+                                                                dcc.DatePickerSingle(
+                                                                    id="replay-date-picker",
+                                                                    placeholder="Select a date",
+                                                                    display_format="YYYY-MM-DD",
+                                                                    date=None,
+                                                                    disabled=False,
+                                                                    calendar_orientation="horizontal",
+                                                                    with_portal=False,
+                                                                    number_of_months_shown=1,
+                                                                ),
+                                                            ],
+                                                            style={"width": "100%"},
+                                                            id="datepicker-wrapper",
+                                                        ),
+                                                        width=10,
                                                     ),
-                                                ], style={"width": "100%"}, id="datepicker-wrapper"),
-                                                width=10,
-                                            ),
-                                            dbc.Col(
-                                                dbc.Button(
-                                                    DashIconify(
-                                                        icon="tabler:refresh",
-                                                        width=18,
-                                                        height=18,
+                                                    dbc.Col(
+                                                        dbc.Button(
+                                                            DashIconify(
+                                                                icon="tabler:refresh",
+                                                                width=18,
+                                                                height=18,
+                                                            ),
+                                                            id="refresh-available-dates",
+                                                            color="light",
+                                                            size="sm",
+                                                            className="rounded-circle",
+                                                            style={
+                                                                "aspectRatio": "1 / 1"
+                                                            },
+                                                        ),
+                                                        width=1,
+                                                        style={"padding-left": "0"},
                                                     ),
-                                                    id="refresh-available-dates",
-                                                    color="light",
-                                                    size="sm",
-                                                    className="rounded-circle",
-                                                    style={"aspectRatio": "1 / 1"},
-                                                ),
-                                                width=1,
-                                                style={"padding-left": "0"},
+                                                ],
+                                                className="align-items-center",
                                             ),
-                                        ], className="align-items-center"),
-                                        # CHANGED: Add store for available dates
-                                        dcc.Store(id="available-dates-store", data=[]),
-                                    ]),
+                                            # CHANGED: Add store for available dates
+                                            dcc.Store(
+                                                id="available-dates-store", data=[]
+                                            ),
+                                        ]
+                                    ),
                                 ),
                                 html.P(),
                                 # Experiment Name dropdown
                                 ControlItem(
                                     "Experiment Name",
                                     "experiment-name-title",
-                                    html.Div([
-                                        dbc.Row([
-                                            dbc.Col(
-                                                dbc.Select(
-                                                    id="experiment-name-dropdown",
-                                                    options=[],
-                                                    value=None,
-                                                    placeholder="Select an experiment name",
-                                                ),
-                                                width=10,
-                                            ),
-                                            dbc.Col(
-                                                dbc.Button(
-                                                    DashIconify(
-                                                        icon="tabler:refresh",
-                                                        width=18,
-                                                        height=18,
+                                    html.Div(
+                                        [
+                                            dbc.Row(
+                                                [
+                                                    dbc.Col(
+                                                        dbc.Select(
+                                                            id="experiment-name-dropdown",
+                                                            options=[],
+                                                            value=None,
+                                                            placeholder="Select an experiment name",
+                                                        ),
+                                                        width=10,
                                                     ),
-                                                    id="refresh-experiment-names",
-                                                    color="light",
-                                                    size="sm",
-                                                    className="rounded-circle",
-                                                    style={"aspectRatio": "1 / 1"},
-                                                ),
-                                                width=1,
-                                                style={"padding-left": "0"},
+                                                    dbc.Col(
+                                                        dbc.Button(
+                                                            DashIconify(
+                                                                icon="tabler:refresh",
+                                                                width=18,
+                                                                height=18,
+                                                            ),
+                                                            id="refresh-experiment-names",
+                                                            color="light",
+                                                            size="sm",
+                                                            className="rounded-circle",
+                                                            style={
+                                                                "aspectRatio": "1 / 1"
+                                                            },
+                                                        ),
+                                                        width=1,
+                                                        style={"padding-left": "0"},
+                                                    ),
+                                                ],
+                                                className="align-items-center",
                                             ),
-                                        ], className="align-items-center"),
-                                    ]),
+                                        ]
+                                    ),
                                 ),
                                 html.P(),
                                 # UUID dropdown
                                 ControlItem(
                                     "Experiment UUID",
                                     "experiment-uuid-title",
-                                    html.Div([
-                                        dbc.Row([
-                                            dbc.Col(
-                                                dbc.Select(
-                                                    id="experiment-uuid-dropdown",
-                                                    options=[],
-                                                    value=None,
-                                                    placeholder="Select an experiment UUID",
-                                                ),
-                                                width=10,
-                                            ),
-                                            dbc.Col(
-                                                dbc.Button(
-                                                    DashIconify(
-                                                        icon="tabler:refresh",
-                                                        width=18,
-                                                        height=18,
+                                    html.Div(
+                                        [
+                                            dbc.Row(
+                                                [
+                                                    dbc.Col(
+                                                        dbc.Select(
+                                                            id="experiment-uuid-dropdown",
+                                                            options=[],
+                                                            value=None,
+                                                            placeholder="Select an experiment UUID",
+                                                        ),
+                                                        width=10,
                                                     ),
-                                                    id="refresh-experiment-uuids",
-                                                    color="light",
-                                                    size="sm",
-                                                    className="rounded-circle",
-                                                    style={"aspectRatio": "1 / 1"},
-                                                ),
-                                                width=1,
-                                                style={"padding-left": "0"},
+                                                    dbc.Col(
+                                                        dbc.Button(
+                                                            DashIconify(
+                                                                icon="tabler:refresh",
+                                                                width=18,
+                                                                height=18,
+                                                            ),
+                                                            id="refresh-experiment-uuids",
+                                                            color="light",
+                                                            size="sm",
+                                                            className="rounded-circle",
+                                                            style={
+                                                                "aspectRatio": "1 / 1"
+                                                            },
+                                                        ),
+                                                        width=1,
+                                                        style={"padding-left": "0"},
+                                                    ),
+                                                ],
+                                                className="align-items-center",
                                             ),
-                                        ], className="align-items-center"),
-                                    ]),
+                                        ]
+                                    ),
                                 ),
                                 html.P(),
                                 # Data Range slider

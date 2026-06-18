@@ -13,7 +13,12 @@ try:
 except ImportError:
     pyfai_detectors = None
 
-from mlex_utils.prefect_utils.core import _read_flow_run, get_children_flow_run_ids, get_flow_run_parameters, get_flow_run_parent_id
+from mlex_utils.prefect_utils.core import (
+    _read_flow_run,
+    get_children_flow_run_ids,
+    get_flow_run_parameters,
+    get_flow_run_parent_id,
+)
 from schemas.data import (
     ClusterResponse,
     DataProjectDictResponse,
@@ -41,10 +46,9 @@ RESULTS_TILED_API_KEY = os.getenv("RESULTS_TILED_API_KEY", "")
 USER = os.getenv("USER", "")
 
 # Tags that are part of the system, not the user-supplied project name
-_SYSTEM_TAGS = (
-    set(json.loads(os.getenv("PREFECT_TAGS", '["latent-space-explorer"]')))
-    | {"latent-space", "clustering"}
-)
+_SYSTEM_TAGS = set(
+    json.loads(os.getenv("PREFECT_TAGS", '["latent-space-explorer"]'))
+) | {"latent-space", "clustering"}
 
 
 def _resolve_project_name(job_id: str, project_name: str) -> str:
@@ -54,7 +58,9 @@ def _resolve_project_name(job_id: str, project_name: str) -> str:
     flow_run = asyncio.run(_read_flow_run(job_id))
     candidates = [t for t in (flow_run.tags or []) if t not in _SYSTEM_TAGS]
     if not candidates:
-        raise ValueError(f"Cannot determine project_name from flow run {job_id}: no non-system tags found")
+        raise ValueError(
+            f"Cannot determine project_name from flow run {job_id}: no non-system tags found"
+        )
     return candidates[0]
 
 
@@ -65,7 +71,17 @@ def _fv_uri_from_clustering_job(clustering_job_id: str) -> str:
     return data_uris[0].lstrip("/")
 
 
-IMAGE_EXTENSIONS = {".tif", ".tiff", ".png", ".jpg", ".jpeg", ".npy", ".npz", ".h5", ".hdf5"}
+IMAGE_EXTENSIONS = {
+    ".tif",
+    ".tiff",
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".npy",
+    ".npz",
+    ".h5",
+    ".hdf5",
+}
 
 
 def list_filesystem(rel_path: str) -> FilesystemListResponse:
@@ -75,16 +91,20 @@ def list_filesystem(rel_path: str) -> FilesystemListResponse:
 
     children = []
     try:
-        entries = sorted(os.scandir(abs_path), key=lambda e: (not e.is_dir(), e.name.lower()))
+        entries = sorted(
+            os.scandir(abs_path), key=lambda e: (not e.is_dir(), e.name.lower())
+        )
         for entry in entries:
             if entry.name.startswith("."):
                 continue
             child_rel = os.path.join(rel_path, entry.name) if rel_path else entry.name
-            children.append(FilesystemChild(
-                rel_path=child_rel,
-                name=entry.name,
-                type="directory" if entry.is_dir() else "file",
-            ))
+            children.append(
+                FilesystemChild(
+                    rel_path=child_rel,
+                    name=entry.name,
+                    type="directory" if entry.is_dir() else "file",
+                )
+            )
     except PermissionError:
         pass
 
@@ -92,7 +112,11 @@ def list_filesystem(rel_path: str) -> FilesystemListResponse:
 
 
 def list_tiled_node(base_uri: str, node_path: str) -> TiledListResponse:
-    api_key = DATA_TILED_KEY if base_uri.rstrip("/") == DEFAULT_TILED_URI.rstrip("/") else None
+    api_key = (
+        DATA_TILED_KEY
+        if base_uri.rstrip("/") == DEFAULT_TILED_URI.rstrip("/")
+        else None
+    )
     client = tiled_from_uri(base_uri, api_key=api_key or None)
 
     if node_path:
@@ -127,15 +151,25 @@ def browse_filesystem(paths: list[str] | None) -> DataProjectDictResponse:
         abs_path = os.path.join(READ_DIR, rel_path)
         filenames = _list_images(abs_path)
         cumulative += len(filenames)
-        datasets.append(DatasetInfo(uri=abs_path, cumulative_data_count=cumulative, filenames=filenames))
-    return DataProjectDictResponse(root_uri=READ_DIR, data_type="file", datasets=datasets)
+        datasets.append(
+            DatasetInfo(
+                uri=abs_path, cumulative_data_count=cumulative, filenames=filenames
+            )
+        )
+    return DataProjectDictResponse(
+        root_uri=READ_DIR, data_type="file", datasets=datasets
+    )
 
 
 def browse_tiled(base_uri: str, paths: list[str] | None) -> DataProjectDictResponse:
     selected = paths or []
     datasets = []
     cumulative = 0
-    api_key = DATA_TILED_KEY if base_uri.rstrip("/") == DEFAULT_TILED_URI.rstrip("/") else None
+    api_key = (
+        DATA_TILED_KEY
+        if base_uri.rstrip("/") == DEFAULT_TILED_URI.rstrip("/")
+        else None
+    )
 
     for node_path in selected:
         try:
@@ -151,7 +185,9 @@ def browse_tiled(base_uri: str, paths: list[str] | None) -> DataProjectDictRespo
         cumulative += count
         datasets.append(DatasetInfo(uri=node_path, cumulative_data_count=cumulative))
 
-    return DataProjectDictResponse(root_uri=base_uri, data_type="tiled", datasets=datasets)
+    return DataProjectDictResponse(
+        root_uri=base_uri, data_type="tiled", datasets=datasets
+    )
 
 
 def get_default_tiled_uri() -> DefaultTiledUriResponse:
@@ -169,7 +205,9 @@ def _navigate(client, uri: str):
     return client
 
 
-def get_feature_vectors(latent_space_job_id: str, project_name: str = "") -> FeatureVectorResponse:
+def get_feature_vectors(
+    latent_space_job_id: str, project_name: str = ""
+) -> FeatureVectorResponse:
     project_name = _resolve_project_name(latent_space_job_id, project_name)
     children = get_children_flow_run_ids(latent_space_job_id)
     child_id = children[1]
@@ -178,7 +216,9 @@ def get_feature_vectors(latent_space_job_id: str, project_name: str = "") -> Fea
     vectors = node.read().to_numpy()
     n_components = node.metadata["model_parameters"]["n_components"]
 
-    return FeatureVectorResponse(vectors=vectors.tolist(), n_components=int(n_components))
+    return FeatureVectorResponse(
+        vectors=vectors.tolist(), n_components=int(n_components)
+    )
 
 
 def get_clusters(
@@ -206,13 +246,17 @@ def get_clusters(
     cl_node = results[USER][project_name][cl_children[0]]
     clusters = cl_node.read()["cluster_label"].tolist()
 
-    return ClusterResponse(vectors=vectors.tolist(), n_components=n_components, clusters=clusters)
+    return ClusterResponse(
+        vectors=vectors.tolist(), n_components=n_components, clusters=clusters
+    )
 
 
 def get_overview(req: OverviewRequest) -> OverviewResponse:
     from file_manager.data_project import DataProject
 
-    data_project = DataProject.from_dict(req.data_project_dict, api_key=DATA_TILED_KEY or None)
+    data_project = DataProject.from_dict(
+        req.data_project_dict, api_key=DATA_TILED_KEY or None
+    )
 
     if not data_project.datasets:
         return OverviewResponse(images=[], total=0)
@@ -249,7 +293,9 @@ def get_data_project_dict_from_job(job_id: str) -> DataProjectDictResponse:
         return browse_tiled(root_uri, data_uris)
 
 
-def get_data_project_dict_from_clustering_job(clustering_job_id: str) -> DataProjectDictResponse:
+def get_data_project_dict_from_clustering_job(
+    clustering_job_id: str,
+) -> DataProjectDictResponse:
     params = get_flow_run_parameters(clustering_job_id)
     fv_uri = params["params_list"][0]["params"]["io_parameters"]["data_uris"][0]
     # fv_uri format: "/{USER}/{project_name}/{dim_red_child_id}"
@@ -261,7 +307,9 @@ def get_data_project_dict_from_clustering_job(clustering_job_id: str) -> DataPro
 def compute_heatmap(req: HeatmapRequest) -> HeatmapResponse:
     from file_manager.data_project import DataProject
 
-    data_project = DataProject.from_dict(req.data_project_dict, api_key=DATA_TILED_KEY or None)
+    data_project = DataProject.from_dict(
+        req.data_project_dict, api_key=DATA_TILED_KEY or None
+    )
     images, _ = data_project.read_datasets(
         req.selected_indices,
         resize=True,
@@ -279,7 +327,13 @@ def compute_heatmap(req: HeatmapRequest) -> HeatmapResponse:
 
 
 def get_masks() -> MasksResponse:
-    detectors = list(pyfai_detectors.ALL_DETECTORS.keys()) if pyfai_detectors is not None else []
+    detectors = (
+        list(pyfai_detectors.ALL_DETECTORS.keys())
+        if pyfai_detectors is not None
+        else []
+    )
     assets_dir = pathlib.Path(__file__).parent.parent.parent / "assets" / "masks"
-    tif_files = [p.name for p in assets_dir.glob("*.tif")] if assets_dir.exists() else []
+    tif_files = (
+        [p.name for p in assets_dir.glob("*.tif")] if assets_dir.exists() else []
+    )
     return MasksResponse(masks=detectors + tif_files + ["None"])

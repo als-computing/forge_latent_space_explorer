@@ -34,7 +34,7 @@ def generate_scattergl_plot(
     custom_indices=None,
     color_by=None,
     metadata_array=None,
-    metadata_label="Value"
+    metadata_label="Value",
 ):
     """
     Generates a multi-trace Scattergl plot with one trace per label,
@@ -44,7 +44,7 @@ def generate_scattergl_plot(
     not belonging to that trace's label, we insert None. This ensures:
       - i-th point in the figure is i-th data row (helpful for selectedData).
       - Each label gets its own legend entry.
-    
+
     Parameters:
     x_coords, y_coords: Coordinates to plot
     labels: Label for each point (for cluster or label coloring)
@@ -63,7 +63,7 @@ def generate_scattergl_plot(
     # Handle metadata-based coloring
     if color_by == "metadata" and metadata_array is not None:
         n_points = len(x_coords)
-        
+
         marker_props = dict(
             size=8,
             color=list(metadata_array),  # Use metadata values
@@ -73,22 +73,22 @@ def generate_scattergl_plot(
                 title=metadata_label,
             ),
         )
-        
+
         trace = go.Scattergl(
             x=x_coords,
             y=y_coords,
             mode="markers",
             marker=marker_props,
-            customdata=[[i] for i in range(n_points)]
+            customdata=[[i] for i in range(n_points)],
         )
-        
+
         fig = go.Figure(trace)
         fig.update_layout(
             dragmode="lasso",
             margin=go.layout.Margin(l=20, r=20, b=20, t=20, pad=0),
             showlegend=show_legend,
         )
-        
+
         return fig
 
     # Original functionality for label-based coloring
@@ -142,7 +142,7 @@ def generate_scatter3d_plot(
     custom_indices=None,
     color_by=None,
     metadata_array=None,
-    metadata_label="Value"
+    metadata_label="Value",
 ):
     """
     Generates a three-dimensional Scatter3d plot with one trace per label,
@@ -164,7 +164,7 @@ def generate_scatter3d_plot(
 
     Returns:
     go.Figure: The generated Scatter3d plot.
-    
+
     If color_by_time is True, colors points by their index (time order).
     """
     import plotly.graph_objects as go
@@ -175,7 +175,7 @@ def generate_scatter3d_plot(
     # Handle metadata-based coloring
     if color_by == "metadata" and metadata_array is not None:
         n_points = len(x_coords)
-        
+
         # Set up the marker properties with metadata-based coloring
         marker_props = dict(
             size=5,
@@ -186,23 +186,23 @@ def generate_scatter3d_plot(
                 title=metadata_label,
             ),
         )
-        
+
         trace = go.Scatter3d(
             x=x_coords,
             y=y_coords,
             z=z_coords,
             mode="markers",
             marker=marker_props,
-            customdata=[[i] for i in range(n_points)]
+            customdata=[[i] for i in range(n_points)],
         )
-        
+
         fig = go.Figure(trace)
         fig.update_layout(
             dragmode="lasso",
             margin=go.layout.Margin(l=20, r=20, b=20, t=20, pad=0),
             showlegend=show_legend,
         )
-        
+
         return fig
 
     # Collect unique labels in the order of their first appearance
@@ -273,7 +273,7 @@ def generate_scatter_data(
     label_names=None,
     color_by=None,
     metadata_array=None,
-    metadata_label="Value"
+    metadata_label="Value",
 ):
     """
     Generate data for a plot according to the provided selection options:
@@ -316,13 +316,13 @@ def generate_scatter_data(
     if cluster_selection == -1 and label_selection == -2:
         if n_components == 2:
             scatter_data = generate_scattergl_plot(
-                latent_vectors[:, 0], 
-                latent_vectors[:, 1], 
-                vals, 
+                latent_vectors[:, 0],
+                latent_vectors[:, 1],
+                vals,
                 vals_names,
                 color_by=color_by,
                 metadata_array=metadata_array,
-                metadata_label=metadata_label
+                metadata_label=metadata_label,
             )
         else:
             scatter_data = generate_scatter3d_plot(
@@ -333,7 +333,7 @@ def generate_scatter_data(
                 vals_names,
                 color_by=color_by,
                 metadata_array=metadata_array,
-                metadata_label=metadata_label
+                metadata_label=metadata_label,
             )
     else:
         # Handle cluster/label selection logic
@@ -371,7 +371,7 @@ def generate_scatter_data(
                 custom_indices=selected_indices,
                 color_by=color_by,
                 metadata_array=metadata_array,
-                metadata_label=metadata_label
+                metadata_label=metadata_label,
             )
         elif n_components == 3:
             scatter_data = generate_scatter3d_plot(
@@ -383,7 +383,7 @@ def generate_scatter_data(
                 custom_indices=selected_indices,
                 color_by=color_by,
                 metadata_array=metadata_array,
-                metadata_label=metadata_label
+                metadata_label=metadata_label,
             )
 
     fig = go.Figure(scatter_data)

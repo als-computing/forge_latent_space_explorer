@@ -1,7 +1,6 @@
 import logging
 
 from fastapi import APIRouter, HTTPException
-
 from schemas.infra import InfraState
 from services.infra_service import get_infra_state
 

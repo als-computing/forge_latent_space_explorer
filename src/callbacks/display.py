@@ -3,15 +3,21 @@ import logging
 import math
 from base64 import b64encode
 
-import numpy as np
 import numba as nb
+import numpy as np
 from dash import ALL, Input, Output, Patch, State, callback, no_update
 from dash.exceptions import PreventUpdate
 from file_manager.data_project import DataProject
 from mlex_utils.prefect_utils.core import get_children_flow_run_ids
 from PIL import Image
 
-from src.app_layout import DATA_TILED_KEY, LIVE_TILED_API_KEY, NUM_IMGS_OVERVIEW, USER, long_callback_manager
+from src.app_layout import (
+    DATA_TILED_KEY,
+    LIVE_TILED_API_KEY,
+    NUM_IMGS_OVERVIEW,
+    USER,
+    long_callback_manager,
+)
 from src.utils.data_utils import hash_list_of_strings, tiled_results
 from src.utils.plot_utils import (
     generate_heatmap_plot,
@@ -24,6 +30,7 @@ MAX_HEATMAP_SELECTION = 30
 
 # Add logger for display.py
 logger = logging.getLogger("lse.display")
+
 
 @nb.njit(parallel=True)
 def fast_mean(arr):
@@ -55,7 +62,7 @@ def fast_std(arr):
             for k in range(arr.shape[0]):
                 sum_val += arr[k, i, j]
             mean[i, j] = sum_val / arr.shape[0]
-    
+
     # Then calculate the variance
     var = np.zeros((arr.shape[1], arr.shape[2]), dtype=np.float32)
     for i in nb.prange(arr.shape[1]):
@@ -65,9 +72,10 @@ def fast_std(arr):
                 diff = arr[k, i, j] - mean[i, j]
                 sum_squared_diff += diff * diff
             var[i, j] = sum_squared_diff / arr.shape[0]
-    
+
     # Return the square root of the variance (standard deviation)
     return np.sqrt(var)
+
 
 def get_empty_image():
     img = Image.fromarray(255 * (np.ones((32, 32)).astype(np.uint8)))
@@ -96,11 +104,11 @@ def update_data_overview(
 ):
     if go_live is not None and go_live % 2 == 1:
         raise PreventUpdate
-    
+
     # Skip if in replay mode - check for the replay_mode flag
     if data_project_dict and data_project_dict.get("replay_mode", False):
         raise PreventUpdate
-    
+
     imgs = []
     if data_project_dict != {}:
         data_project = DataProject.from_dict(data_project_dict, api_key=DATA_TILED_KEY)
@@ -372,11 +380,11 @@ def update_heatmap(
     """
     # Check if in live mode
     is_live_mode = go_live is not None and go_live % 2 == 1
-    
+
     # user select a group of points
     if selected_data is not None and len(selected_data["points"]) > 0:
         selected_indices = [point["pointIndex"] for point in selected_data["points"]]
-        
+
         # Only apply MAX_HEATMAP_SELECTION limit in live mode
         if is_live_mode and len(selected_indices) > MAX_HEATMAP_SELECTION:
             return (
@@ -403,7 +411,7 @@ def update_heatmap(
 
     # Determine which API key to use based on live mode
     is_replay_mode = data_project_dict.get("replay_mode", False)
-    
+
     if is_live_mode:
         # Use remote API key for live mode
         api_key = LIVE_TILED_API_KEY

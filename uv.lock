@@ -138,8 +138,8 @@ dependencies = [
 
 [[package]]
 name = "arroyosas"
-version = "0.0.1"
-source = { git = "https://github.com/als-computing/arroyosas.git?rev=move_lse#5c6ccfdc8d10266629be60fe23550bb160aec042" }
+version = "0.1.0"
+source = { git = "https://github.com/als-computing/arroyosas.git#dd2d71693e3504a1d2361a903836563d3dfaad74" }
 dependencies = [
     { name = "arroyopy" },
     { name = "bluesky-tiled-plugins" },
@@ -148,10 +148,10 @@ dependencies = [
     { name = "numpy" },
     { name = "pandas" },
     { name = "pillow" },
-    { name = "pyfai" },
     { name = "python-dotenv" },
     { name = "pyzmq" },
     { name = "redis" },
+    { name = "tiled", extra = ["client"] },
     { name = "tqdm" },
     { name = "transformers" },
     { name = "typer" },
@@ -1074,15 +1074,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/ea/8d/a7121ffe5f402dc015277d2d31eb82d2187334503a011c18f2e78ecbb9b2/entrypoints-0.4.tar.gz", hash = "sha256:b706eddaa9218a19ebcd67b56818f05bb27589b1ca9e8d797b74affad4ccacd4", size = 13974, upload-time = "2022-02-02T21:30:28.172Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/35/a8/365059bbcd4572cbc41de17fd5b682be5868b218c3c5479071865cab9078/entrypoints-0.4-py3-none-any.whl", hash = "sha256:f174b5ff827504fd3cd97cc3f8649f3693f51538c7e4bdf3ef002c8429d42f9f", size = 5294, upload-time = "2022-02-02T21:30:26.024Z" },
-]
-
-[[package]]
-name = "et-xmlfile"
-version = "2.0.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/d3/38/af70d7ab1ae9d4da450eeec1fa3918940a5fafb9055e934af8d6eb0c2313/et_xmlfile-2.0.0.tar.gz", hash = "sha256:dab3f4764309081ce75662649be815c4c9081e88f0837825f90fd28317d4da54", size = 17234, upload-time = "2024-10-25T17:25:40.039Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/c1/8b/5fe2cc11fee489817272089c4203e679c63b570a5aaeb18d852ae3cbba6a/et_xmlfile-2.0.0-py3-none-any.whl", hash = "sha256:7a91720bc756843502c3b7504c77b8fe44217c85c537d85037f0f536151b2caa", size = 18059, upload-time = "2024-10-25T17:25:39.051Z" },
 ]
 
 [[package]]
@@ -2111,12 +2102,12 @@ api = [
     { name = "httpx" },
     { name = "mlex-file-manager" },
     { name = "mlex-utils", extra = ["all"] },
-    { name = "numpy" },
-    { name = "openpyxl" },
-    { name = "pillow" },
     { name = "python-dotenv" },
+    { name = "redis" },
     { name = "tiled", extra = ["client", "minimal-server"] },
     { name = "uvicorn", extra = ["standard"] },
+    { name = "websocket-client" },
+    { name = "websockets" },
 ]
 arroyo = [
     { name = "aiosqlite" },
@@ -2124,7 +2115,7 @@ arroyo = [
     { name = "arroyosas" },
     { name = "dynaconf" },
     { name = "joblib" },
-    { name = "mlex-utils", extra = ["all"] },
+    { name = "mlex-utils" },
     { name = "mlflow" },
     { name = "msgpack" },
     { name = "numpy" },
@@ -2186,7 +2177,7 @@ requires-dist = [
     { name = "aio-pika", marker = "extra == 'simulator'" },
     { name = "aiosqlite", marker = "extra == 'arroyo'" },
     { name = "arroyopy", marker = "extra == 'arroyo'", git = "https://github.com/als-computing/arroyopy.git" },
-    { name = "arroyosas", marker = "extra == 'arroyo'", git = "https://github.com/als-computing/arroyosas.git?rev=move_lse" },
+    { name = "arroyosas", marker = "extra == 'arroyo'", git = "https://github.com/als-computing/arroyosas.git" },
     { name = "black", marker = "extra == 'dev'", specifier = "==24.2.0" },
     { name = "dash", marker = "extra == 'lse'", specifier = "==2.9.3" },
     { name = "dash-bootstrap-components", marker = "extra == 'lse'", specifier = ">=1.1.0" },
@@ -2208,18 +2199,15 @@ requires-dist = [
     { name = "kaleido", marker = "extra == 'lse'", specifier = "<=0.2.1" },
     { name = "mlex-file-manager", marker = "extra == 'api'", git = "https://github.com/mlexchange/mlex_file_manager.git" },
     { name = "mlex-file-manager", marker = "extra == 'lse'", git = "https://github.com/mlexchange/mlex_file_manager.git" },
+    { name = "mlex-utils", marker = "extra == 'arroyo'", git = "https://github.com/mlexchange/mlex_utils.git" },
     { name = "mlex-utils", extras = ["all"], marker = "extra == 'api'", git = "https://github.com/mlexchange/mlex_utils.git" },
-    { name = "mlex-utils", extras = ["all"], marker = "extra == 'arroyo'", git = "https://github.com/mlexchange/mlex_utils.git" },
     { name = "mlex-utils", extras = ["all"], marker = "extra == 'lse'", git = "https://github.com/mlexchange/mlex_utils.git" },
     { name = "mlflow", marker = "extra == 'arroyo'", specifier = "==2.22.0" },
     { name = "mlflow", marker = "extra == 'lse'", specifier = "==2.22.0" },
     { name = "msgpack", marker = "extra == 'arroyo'" },
-    { name = "numpy", marker = "extra == 'api'" },
     { name = "numpy", marker = "extra == 'arroyo'", specifier = "<2.0.0" },
     { name = "numpy", marker = "extra == 'lse'", specifier = "<2.0.0" },
-    { name = "openpyxl", marker = "extra == 'api'" },
     { name = "pandas", marker = "extra == 'lse'" },
-    { name = "pillow", marker = "extra == 'api'" },
     { name = "pillow", marker = "extra == 'lse'" },
     { name = "plotly", marker = "extra == 'lse'", specifier = ">=5.21.0,<6.0.0" },
     { name = "plotly-express", marker = "extra == 'lse'" },
@@ -2230,6 +2218,7 @@ requires-dist = [
     { name = "pytest-asyncio", marker = "extra == 'dev'" },
     { name = "python-dotenv", marker = "extra == 'api'" },
     { name = "python-dotenv", marker = "extra == 'lse'" },
+    { name = "redis", marker = "extra == 'api'" },
     { name = "redis", marker = "extra == 'arroyo'" },
     { name = "redis", marker = "extra == 'lse'" },
     { name = "requests", marker = "extra == 'lse'" },
@@ -2245,6 +2234,8 @@ requires-dist = [
     { name = "umap-learn", marker = "extra == 'arroyo'" },
     { name = "uvicorn", extras = ["standard"], marker = "extra == 'api'" },
     { name = "websocket", marker = "extra == 'simulator'" },
+    { name = "websocket-client", marker = "extra == 'api'" },
+    { name = "websockets", marker = "extra == 'api'" },
     { name = "websockets", marker = "extra == 'arroyo'" },
     { name = "zarr", marker = "extra == 'arroyo'" },
 ]
@@ -3286,18 +3277,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/0b/5f/19930f824ffeb0ad4372da4812c50edbd1434f678c90c2733e1188edfc63/oauthlib-3.3.1.tar.gz", hash = "sha256:0f0f8aa759826a193cf66c12ea1af1637f87b9b4622d46e866952bb022e538c9", size = 185918, upload-time = "2025-06-19T22:48:08.269Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/be/9c/92789c596b8df838baa98fa71844d84283302f7604ed565dafe5a6b5041a/oauthlib-3.3.1-py3-none-any.whl", hash = "sha256:88119c938d2b8fb88561af5f6ee0eec8cc8d552b7bb1f712743136eb7523b7a1", size = 160065, upload-time = "2025-06-19T22:48:06.508Z" },
-]
-
-[[package]]
-name = "openpyxl"
-version = "3.1.5"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "et-xmlfile" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/3d/f9/88d94a75de065ea32619465d2f77b29a0469500e99012523b91cc4141cd1/openpyxl-3.1.5.tar.gz", hash = "sha256:cf0e3cf56142039133628b5acffe8ef0c12bc902d2aadd3e0fe5878dc08d1050", size = 186464, upload-time = "2024-06-28T14:03:44.161Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/c0/da/977ded879c29cbd04de313843e76868e6e13408a94ed6b987245dc7c8506/openpyxl-3.1.5-py2.py3-none-any.whl", hash = "sha256:5282c12b107bffeef825f4617dc029afaf41d0ea60823bbb665ef3079dc79de2", size = 250910, upload-time = "2024-06-28T14:03:41.161Z" },
 ]
 
 [[package]]
@@ -5820,6 +5799,15 @@ dependencies = [
     { name = "greenlet" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/f2/6d/a60d620ea575c885510c574909d2e3ed62129b121fa2df00ca1c81024c87/websocket-0.2.1.tar.gz", hash = "sha256:42b506fae914ac5ed654e23ba9742e6a342b1a1c3eb92632b6166c65256469a4", size = 195339, upload-time = "2010-12-03T11:51:30.867Z" }
+
+[[package]]
+name = "websocket-client"
+version = "1.9.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/2c/41/aa4bf9664e4cda14c3b39865b12251e8e7d239f4cd0e3cc1b6c2ccde25c1/websocket_client-1.9.0.tar.gz", hash = "sha256:9e813624b6eb619999a97dc7958469217c3176312b3a16a4bd1bc7e08a46ec98", size = 70576, upload-time = "2025-10-07T21:16:36.495Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/34/db/b10e48aa8fff7407e67470363eac595018441cf32d5e1001567a7aeba5d2/websocket_client-1.9.0-py3-none-any.whl", hash = "sha256:af248a825037ef591efbf6ed20cc5faa03d3b47b9e5a2230a529eeee1c1fc3ef", size = 82616, upload-time = "2025-10-07T21:16:34.951Z" },
+]
 
 [[package]]
 name = "websockets"

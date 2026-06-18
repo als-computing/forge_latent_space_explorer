@@ -11,9 +11,9 @@ REDIS_HOST = os.getenv("REDIS_HOST", "kvrocks")
 REDIS_PORT = int(os.getenv("REDIS_PORT", 6666))
 
 KEY_AUTOENCODER = "selected_mlflow_model"
-KEY_DIMRED      = "selected_dim_reduction_model"
-KEY_EXPERIMENT  = "experiment_name"
-CHANNEL         = "model_updates"
+KEY_DIMRED = "selected_dim_reduction_model"
+KEY_EXPERIMENT = "experiment_name"
+CHANNEL = "model_updates"
 
 
 def _client() -> redis.Redis:
@@ -30,24 +30,41 @@ def start_live(autoencoder_model: str, dimred_model: str, experiment_name: str) 
     # actually loads the model objects (without these arroyo reads the key
     # but model stays None and every frame errors with NoneType.predict)
     now = time.time()
-    r.publish(CHANNEL, json.dumps({
-        "model_type": "autoencoder",
-        "model_name": autoencoder_model,
-        "timestamp": now,
-    }))
-    r.publish(CHANNEL, json.dumps({
-        "model_type": "dimred",
-        "model_name": dimred_model,
-        "timestamp": now,
-    }))
-    r.publish(CHANNEL, json.dumps({
-        "update_type": "experiment_name",
-        "experiment_name": experiment_name,
-        "timestamp": now,
-    }))
+    r.publish(
+        CHANNEL,
+        json.dumps(
+            {
+                "model_type": "autoencoder",
+                "model_name": autoencoder_model,
+                "timestamp": now,
+            }
+        ),
+    )
+    r.publish(
+        CHANNEL,
+        json.dumps(
+            {
+                "model_type": "dimred",
+                "model_name": dimred_model,
+                "timestamp": now,
+            }
+        ),
+    )
+    r.publish(
+        CHANNEL,
+        json.dumps(
+            {
+                "update_type": "experiment_name",
+                "experiment_name": experiment_name,
+                "timestamp": now,
+            }
+        ),
+    )
     logger.info(
         "Live mode started: ae=%s dr=%s exp=%s",
-        autoencoder_model, dimred_model, experiment_name,
+        autoencoder_model,
+        dimred_model,
+        experiment_name,
     )
 
 

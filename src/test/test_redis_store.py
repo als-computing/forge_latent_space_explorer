@@ -1,11 +1,7 @@
 import json
 from unittest.mock import MagicMock, patch
 
-import pytest
-import redis
-
 from src.arroyo_reduction.redis_model_store import RedisModelStore
-from src.test.test_utils import mock_redis_client, redis_test_store
 
 
 class TestRedisStore:

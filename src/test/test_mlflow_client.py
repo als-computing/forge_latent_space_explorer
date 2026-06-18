@@ -1,11 +1,8 @@
 import hashlib
 import os
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
-import mlflow
 import pytest
-
-from src.test.test_utils import mlflow_test_client, mock_mlflow_client, mock_os_makedirs
 from mlex_utils.mlflow_utils.mlflow_model_client import MLflowModelClient
 
 
@@ -91,14 +88,20 @@ class TestMLflowClient:
 
     @patch("mlex_utils.mlflow_utils.mlflow_model_client.get_flow_run_name")
     @patch("mlex_utils.mlflow_utils.mlflow_model_client.get_flow_run_parent_id")
-    def test_get_mlflow_models(self, mock_get_parent_id, mock_get_flow_name, mlflow_test_client, mock_mlflow_client):
+    def test_get_mlflow_models(
+        self,
+        mock_get_parent_id,
+        mock_get_flow_name,
+        mlflow_test_client,
+        mock_mlflow_client,
+    ):
         """Test retrieving MLflow models"""
         client = mlflow_test_client
-        
+
         # Configure Prefect mocks
         mock_get_flow_name.return_value = "Flow Run 1"
         mock_get_parent_id.return_value = "parent-id"
-        
+
         # Create mock model versions
         mock_version1 = MagicMock()
         mock_version1.name = "model1"
@@ -183,15 +186,19 @@ class TestMLflowClient:
     @patch("mlex_utils.mlflow_utils.mlflow_model_client.get_flow_run_name")
     @patch("mlex_utils.mlflow_utils.mlflow_model_client.get_flow_run_parent_id")
     def test_get_mlflow_models_with_model_type(
-        self, mock_get_parent_id, mock_get_flow_name, mlflow_test_client, mock_mlflow_client
+        self,
+        mock_get_parent_id,
+        mock_get_flow_name,
+        mlflow_test_client,
+        mock_mlflow_client,
     ):
         """Test retrieving MLflow models with model_type filter"""
         client = mlflow_test_client
-        
+
         # Configure Prefect mocks
         mock_get_flow_name.return_value = "Flow Run 1"
         mock_get_parent_id.return_value = "parent-id"
-        
+
         # Create mock model versions
         mock_version1 = MagicMock()
         mock_version1.name = "model1"

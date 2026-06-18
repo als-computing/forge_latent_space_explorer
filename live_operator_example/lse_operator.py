@@ -2,13 +2,11 @@ import logging
 import os
 import sys
 
-import numpy as np
 import torch
 
 # Import the MLflowClient class
 from mlex_utils.mlflow_utils.mlflow_model_client import MLflowModelClient
 from tiled.client import from_uri
-
 from tiled_utils import write_results
 
 # Configure logging

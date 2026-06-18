@@ -73,7 +73,7 @@ services:
       mle_net:
 
   mlflow:
-    image: ghcr.io/mlflow/mlflow:v2.22.0 
+    image: ghcr.io/mlflow/mlflow:v2.22.0
     container_name: mlflow-server
     command: >
       /bin/sh -c "pip install --no-cache-dir psycopg2-binary 'mlflow[auth]' &&
@@ -176,16 +176,16 @@ services:
   #   networks:
   #     mle_net:
 
-  kvrocks:  
-    image: docker.io/apache/kvrocks:latest 
-    container_name: kvrocks  # Added container name 
-    volumes:  
-      - ./conf/kvrocks/kvrocks.conf:/etc/kvrocks/kvrocks.conf  
-      - ./persist/kvrocks/data:/data  
+  kvrocks:
+    image: docker.io/apache/kvrocks:latest
+    container_name: kvrocks  # Added container name
+    volumes:
+      - ./conf/kvrocks/kvrocks.conf:/etc/kvrocks/kvrocks.conf
+      - ./persist/kvrocks/data:/data
     ports:
       - "127.0.0.1:6666:6666"  # Added port mapping
-    networks:  
-      mle_net: 
+    networks:
+      mle_net:
 
   # arroyo, arroyo_vec_sim and arroyo_sim are made optional via profiles
   # To run vector simulator, use
@@ -280,7 +280,7 @@ services:
       - ./data/mlflow_cache:/mlflow_cache
       - ./data/vector_save:/data/vector_save
     ports:
-      - 127.0.0.1:8765:8765  
+      - 127.0.0.1:8765:8765
     environment:
       NUMBA_DISABLE_JIT: ${NUMBA_DISABLE_JIT:-0}
       NUMBA_CPU_NAME: ${NUMBA_CPU_NAME:-generic}
@@ -358,7 +358,7 @@ services:
       - ./data:/data:rw
     environment:
       # SIM_MODE: use direct, db_replay or local_tiled
-      - SIM_MODE=${SIM_MODE:-direct} 
+      - SIM_MODE=${SIM_MODE:-direct}
       # API key
       - TILED_LIVE_API_KEY=${LIVE_TILED_API_KEY} #TILED_LIVE_API_KEY is required by DynaconfFormat
       # db_replay mode

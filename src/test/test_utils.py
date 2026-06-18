@@ -1,4 +1,3 @@
-import os
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -22,19 +21,23 @@ def mock_mlflow_client():
 def mlflow_test_client(mock_os_makedirs, mock_mlflow_client):
     """Create a MLflowModelClient instance with mocked dependencies"""
     from mlex_utils.mlflow_utils.mlflow_model_client import MLflowModelClient
-    
+
     # Patch the MLflowClient class to return our mock
-    with patch("mlex_utils.mlflow_utils.mlflow_model_client.MlflowClient") as mock_mlflow_class:
+    with patch(
+        "mlex_utils.mlflow_utils.mlflow_model_client.MlflowClient"
+    ) as mock_mlflow_class:
         mock_mlflow_class.return_value = mock_mlflow_client
-        
-        with patch("mlex_utils.mlflow_utils.mlflow_model_client.mlflow.set_tracking_uri"):
+
+        with patch(
+            "mlex_utils.mlflow_utils.mlflow_model_client.mlflow.set_tracking_uri"
+        ):
             client = MLflowModelClient(
                 tracking_uri="http://mock-mlflow:5000",
                 username="test-user",
                 password="test-password",
                 cache_dir="/tmp/test_mlflow_cache",
             )
-            
+
             yield client
 
 
@@ -89,7 +92,9 @@ def redis_mlflow_mocks():
     """Set up and start Redis and MLflow mocks"""
     # Create the patches
     redis_mock_patch = patch("src.arroyo_reduction.redis_model_store.RedisModelStore")
-    mlflow_client_mock_patch = patch("mlex_utils.mlflow_utils.mlflow_model_client.MLflowModelClient")
+    mlflow_client_mock_patch = patch(
+        "mlex_utils.mlflow_utils.mlflow_model_client.MLflowModelClient"
+    )
 
     # Start all the patches
     redis_mock = redis_mock_patch.start()

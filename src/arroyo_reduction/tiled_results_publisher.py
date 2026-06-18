@@ -63,7 +63,7 @@ class TiledResultsPublisher(Publisher):
         # Track current experiment name (will be set from message)
         self.current_experiment_name = "default_experiment"
 
-        logger.info(f"Initialized publisher with UUID-based table grouping")
+        logger.info("Initialized publisher with UUID-based table grouping")
 
     async def start(self):
         """Connection happens lazily on first publish."""

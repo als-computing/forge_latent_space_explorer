@@ -8,8 +8,6 @@ from datetime import datetime
 from urllib.parse import quote, urljoin
 from zoneinfo import ZoneInfo
 
-from tiled.client import from_uri as tiled_from_uri
-
 from mlex_utils.mlflow_utils.mlflow_model_client import MLflowModelClient
 from mlex_utils.prefect_utils.core import (
     _flow_run_query,
@@ -20,7 +18,6 @@ from mlex_utils.prefect_utils.core import (
     get_flow_run_state,
     schedule_prefect_flow,
 )
-
 from schemas.jobs import (
     ClusteringJobRequest,
     FlowRunOption,
@@ -30,6 +27,7 @@ from schemas.jobs import (
     MlflowModelOption,
 )
 from services import model_service
+from tiled.client import from_uri as tiled_from_uri
 
 MODE = os.getenv("MODE", "")
 FLOW_NAME = os.getenv("FLOW_NAME", "")
@@ -51,10 +49,10 @@ def _get_mlflow_client() -> MLflowModelClient:
         _mlflow_client = MLflowModelClient()
     return _mlflow_client
 
-_SYSTEM_TAGS = (
-    set(json.loads(os.getenv("PREFECT_TAGS", '["latent-space-explorer"]')))
-    | {"latent-space", "clustering"}
-)
+
+_SYSTEM_TAGS = set(
+    json.loads(os.getenv("PREFECT_TAGS", '["latent-space-explorer"]'))
+) | {"latent-space", "clustering"}
 
 
 def _sanitize_project_name(name: str) -> str:
@@ -69,7 +67,9 @@ def _resolve_project_name(job_id: str, project_name: str) -> str:
     flow_run = asyncio.run(_read_flow_run(job_id))
     candidates = [t for t in (flow_run.tags or []) if t not in _SYSTEM_TAGS]
     if not candidates:
-        raise ValueError(f"Cannot determine project_name from flow run {job_id}: no non-system tags found")
+        raise ValueError(
+            f"Cannot determine project_name from flow run {job_id}: no non-system tags found"
+        )
     return candidates[0]
 
 
@@ -83,7 +83,9 @@ def _prepare_project_container(user: str, project_name: str) -> None:
             client = client.create_container(key=key)
 
 
-def _build_flow_run_option(flow_run, mlflow_label_by_id: dict[str, str]) -> FlowRunOption:
+def _build_flow_run_option(
+    flow_run, mlflow_label_by_id: dict[str, str]
+) -> FlowRunOption:
     if flow_run.state_name in {"Failed", "Crashed"}:
         label = f"❌ {flow_run.name}"
     elif flow_run.state_name == "Completed":
@@ -94,29 +96,29 @@ def _build_flow_run_option(flow_run, mlflow_label_by_id: dict[str, str]) -> Flow
         label = f"🕑 {flow_run.name}"
 
     candidates = [t for t in (flow_run.tags or []) if t not in _SYSTEM_TAGS]
-    project_name = candidates[0] if candidates else ''
+    project_name = candidates[0] if candidates else ""
 
-    algorithm = ''
-    autoencoder_model = ''
+    algorithm = ""
+    autoencoder_model = ""
     try:
-        params_list = (flow_run.parameters or {}).get('params_list', [])
+        params_list = (flow_run.parameters or {}).get("params_list", [])
         if len(params_list) >= 2:
             # dim-reduction job: [0] = ae extraction, [1] = dim reduction algorithm
-            algorithm = params_list[1].get('model_name', '')
+            algorithm = params_list[1].get("model_name", "")
             mlflow_id = (
                 params_list[0]
-                .get('params', {})
-                .get('io_parameters', {})
-                .get('mlflow_model', '')
+                .get("params", {})
+                .get("io_parameters", {})
+                .get("mlflow_model", "")
             )
             autoencoder_model = mlflow_label_by_id.get(mlflow_id, mlflow_id)
         elif len(params_list) == 1:
             # clustering job: [0] = clustering algorithm
-            algorithm = params_list[0].get('model_name', '')
+            algorithm = params_list[0].get("model_name", "")
     except (AttributeError, TypeError, KeyError):
         pass
 
-    date = str(flow_run.created)[:16].replace('T', ' ') if flow_run.created else ''
+    date = str(flow_run.created)[:16].replace("T", " ") if flow_run.created else ""
 
     return FlowRunOption(
         value=str(flow_run.id),
@@ -125,7 +127,7 @@ def _build_flow_run_option(flow_run, mlflow_label_by_id: dict[str, str]) -> Flow
         algorithm=algorithm,
         autoencoder_model=autoencoder_model,
         date=date,
-        state=flow_run.state_name or '',
+        state=flow_run.state_name or "",
     )
 
 
@@ -133,9 +135,9 @@ def get_flow_runs(tags: list[str] | None = None) -> list[FlowRunOption]:
     flow_runs = asyncio.run(_flow_run_query(tags=tags or PREFECT_TAGS))
     try:
         mlflow_label_by_id = {
-            opt['value']: opt['label']
+            opt["value"]: opt["label"]
             for opt in _get_mlflow_client().get_mlflow_models(livemode=False)
-            if opt.get('value')
+            if opt.get("value")
         }
     except Exception:
         mlflow_label_by_id = {}
@@ -145,7 +147,9 @@ def get_flow_runs(tags: list[str] | None = None) -> list[FlowRunOption]:
 def _result_exists_in_tiled(result_uri: str) -> bool:
     """Return True if the result node is reachable in the results Tiled instance."""
     try:
-        client = tiled_from_uri(RESULTS_TILED_URI, api_key=RESULTS_TILED_API_KEY or None)
+        client = tiled_from_uri(
+            RESULTS_TILED_URI, api_key=RESULTS_TILED_API_KEY or None
+        )
         for part in result_uri.strip("/").split("/"):
             client = client[part]
         return True
@@ -153,7 +157,9 @@ def _result_exists_in_tiled(result_uri: str) -> bool:
         return False
 
 
-def get_latent_space_job_status(job_id: str, project_name: str = "") -> JobStatusResponse:
+def get_latent_space_job_status(
+    job_id: str, project_name: str = ""
+) -> JobStatusResponse:
     """Check whether the dim-reduction child job has completed and its results exist in Tiled."""
     try:
         children = get_children_flow_run_ids(job_id)
@@ -174,7 +180,9 @@ def get_latent_space_job_status(job_id: str, project_name: str = "") -> JobStatu
     project_name = _sanitize_project_name(_resolve_project_name(job_id, project_name))
     result_uri = f"{USER}/{project_name}/{child_id}"
     ready = _result_exists_in_tiled(result_uri)
-    return JobStatusResponse(ready=ready, state=state_str, result_uri=result_uri if ready else None)
+    return JobStatusResponse(
+        ready=ready, state=state_str, result_uri=result_uri if ready else None
+    )
 
 
 def get_clustering_job_status(job_id: str, project_name: str = "") -> JobStatusResponse:
@@ -197,7 +205,9 @@ def get_clustering_job_status(job_id: str, project_name: str = "") -> JobStatusR
     project_name = _sanitize_project_name(_resolve_project_name(job_id, project_name))
     result_uri = f"{USER}/{project_name}/{child_id}"
     ready = _result_exists_in_tiled(result_uri)
-    return JobStatusResponse(ready=ready, state=state_str, result_uri=result_uri if ready else None)
+    return JobStatusResponse(
+        ready=ready, state=state_str, result_uri=result_uri if ready else None
+    )
 
 
 def get_job_logs(job_id: str) -> list[str]:
@@ -211,14 +221,22 @@ def get_job_logs(job_id: str) -> list[str]:
 
 
 def get_live_models(model_type: str) -> list[MlflowModelOption]:
-    options = _get_mlflow_client().get_mlflow_models(livemode=True, model_type=model_type)
-    return [MlflowModelOption(label=opt['label'], value=opt['value']) for opt in options]
+    options = _get_mlflow_client().get_mlflow_models(
+        livemode=True, model_type=model_type
+    )
+    return [
+        MlflowModelOption(label=opt["label"], value=opt["value"]) for opt in options
+    ]
 
 
 def get_live_model_versions(model_name: str) -> list:
     from schemas.jobs import ModelVersionOption
+
     versions = _get_mlflow_client().get_model_versions(model_name)
-    return [ModelVersionOption(label=opt['label'], value=str(opt['value'])) for opt in versions]
+    return [
+        ModelVersionOption(label=opt["label"], value=str(opt["value"]))
+        for opt in versions
+    ]
 
 
 def get_mlflow_models() -> list[MlflowModelOption]:
@@ -237,24 +255,25 @@ def get_mlflow_models() -> list[MlflowModelOption]:
         for name, v in latest.items():
             try:
                 run = client.client.get_run(v.run_id)  # type: ignore[union-attr]
-                algorithm = run.data.tags.get('model_type', '')
-                ts = getattr(v, 'creation_timestamp', None) or run.info.start_time
+                algorithm = run.data.tags.get("model_type", "")
+                ts = getattr(v, "creation_timestamp", None) or run.info.start_time
                 date = (
-                    datetime.fromtimestamp(ts / 1000).strftime('%Y-%m-%d %H:%M')
-                    if ts else ''
+                    datetime.fromtimestamp(ts / 1000).strftime("%Y-%m-%d %H:%M")
+                    if ts
+                    else ""
                 )
                 enrichment[name] = (algorithm, date)
             except Exception:
-                enrichment[name] = ('', '')
+                enrichment[name] = ("", "")
     except Exception:
         pass
 
     return [
         MlflowModelOption(
-            label=opt['label'],
-            value=opt['value'],
-            algorithm=enrichment.get(opt['value'] or '', ('', ''))[0],
-            date=enrichment.get(opt['value'] or '', ('', ''))[1],
+            label=opt["label"],
+            value=opt["value"],
+            algorithm=enrichment.get(opt["value"] or "", ("", ""))[0],
+            date=enrichment.get(opt["value"] or "", ("", ""))[1],
         )
         for opt in base_options
     ]
@@ -314,7 +333,10 @@ def submit_latent_space_job(req: LatentSpaceJobRequest) -> JobSubmitResponse:
         {
             "model_name": dim_reduction_model.model_name,
             "task_name": "excute",
-            "params": {"io_parameters": io_parameters, "model_parameters": model_parameters},
+            "params": {
+                "io_parameters": io_parameters,
+                "model_parameters": model_parameters,
+            },
         },
     ]
     job_params = {"params_list": params_list}
@@ -330,13 +352,20 @@ def submit_latent_space_job(req: LatentSpaceJobRequest) -> JobSubmitResponse:
     try:
         _prepare_project_container(USER, project_name)
         current_time = datetime.now(ZoneInfo(TIMEZONE)).strftime("%Y-%m-%d %H:%M:%S")
-        job_uid = str(schedule_prefect_flow(
-            FLOW_NAME,
-            parameters=job_params,
-            flow_run_name=f"{req.job_name} {current_time}",
-            tags=PREFECT_TAGS + [project_name, "latent-space"],
-        ))
-        logger.info("Latent-space job submitted: uid=%s project=%s model=%s", job_uid, project_name, req.model_name)
+        job_uid = str(
+            schedule_prefect_flow(
+                FLOW_NAME,
+                parameters=job_params,
+                flow_run_name=f"{req.job_name} {current_time}",
+                tags=PREFECT_TAGS + [project_name, "latent-space"],
+            )
+        )
+        logger.info(
+            "Latent-space job submitted: uid=%s project=%s model=%s",
+            job_uid,
+            project_name,
+            req.model_name,
+        )
         return JobSubmitResponse(
             job_uid=job_uid,
             message=f"Job submitted with uid {job_uid}",
@@ -344,7 +373,9 @@ def submit_latent_space_job(req: LatentSpaceJobRequest) -> JobSubmitResponse:
         )
     except Exception as e:
         logger.error(traceback.format_exc())
-        return JobSubmitResponse(job_uid=None, message=f"Job error: {e}", status="error")
+        return JobSubmitResponse(
+            job_uid=None, message=f"Job error: {e}", status="error"
+        )
 
 
 def submit_clustering_job(req: ClusteringJobRequest) -> JobSubmitResponse:
@@ -380,7 +411,10 @@ def submit_clustering_job(req: ClusteringJobRequest) -> JobSubmitResponse:
         {
             "model_name": clustering_model.model_name,
             "task_name": "excute",
-            "params": {"io_parameters": io_parameters, "model_parameters": model_parameters},
+            "params": {
+                "io_parameters": io_parameters,
+                "model_parameters": model_parameters,
+            },
         }
     ]
     job_params = {"params_list": params_list}
@@ -397,13 +431,20 @@ def submit_clustering_job(req: ClusteringJobRequest) -> JobSubmitResponse:
         _prepare_project_container(USER, project_name)
         current_time = datetime.now(ZoneInfo(TIMEZONE)).strftime("%Y-%m-%d %H:%M:%S")
         dim_red_name = get_flow_run_name(req.dimension_reduction_job_id)
-        job_uid = str(schedule_prefect_flow(
-            FLOW_NAME,
-            parameters=job_params,
-            flow_run_name=f"{dim_red_name} {req.job_name} {current_time}",
-            tags=PREFECT_TAGS + [project_name, "clustering"],
-        ))
-        logger.info("Clustering job submitted: uid=%s project=%s model=%s", job_uid, project_name, req.model_name)
+        job_uid = str(
+            schedule_prefect_flow(
+                FLOW_NAME,
+                parameters=job_params,
+                flow_run_name=f"{dim_red_name} {req.job_name} {current_time}",
+                tags=PREFECT_TAGS + [project_name, "clustering"],
+            )
+        )
+        logger.info(
+            "Clustering job submitted: uid=%s project=%s model=%s",
+            job_uid,
+            project_name,
+            req.model_name,
+        )
         return JobSubmitResponse(
             job_uid=job_uid,
             message=f"Job submitted with uid {job_uid}",
@@ -411,4 +452,6 @@ def submit_clustering_job(req: ClusteringJobRequest) -> JobSubmitResponse:
         )
     except Exception as e:
         logger.error(traceback.format_exc())
-        return JobSubmitResponse(job_uid=None, message=f"Job error: {e}", status="error")
+        return JobSubmitResponse(
+            job_uid=None, message=f"Job error: {e}", status="error"
+        )

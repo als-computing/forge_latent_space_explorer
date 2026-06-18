@@ -2,9 +2,6 @@ from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
-import torch
-
-from src.test.test_utils import mock_event, redis_mlflow_mocks
 
 
 class TestReducer:
@@ -38,11 +35,15 @@ class TestReducer:
 
         # Create real numpy arrays with proper dimensions and types
         latent_features = np.random.rand(1, 64).astype(np.float32)
-        dimred_coords = np.random.rand(1, 2).astype(np.float32)  # CHANGED: umap_coords -> dimred_coords
+        dimred_coords = np.random.rand(1, 2).astype(
+            np.float32
+        )  # CHANGED: umap_coords -> dimred_coords
 
         # Set up the mocks to return real numpy arrays
         mocks["autoencoder"].predict.return_value = {"latent_features": latent_features}
-        mocks["dimred"].predict.return_value = {"coords": dimred_coords}  # CHANGED: "umap_coords" -> "coords"
+        mocks["dimred"].predict.return_value = {
+            "coords": dimred_coords
+        }  # CHANGED: "umap_coords" -> "coords"
 
         # Set the models
         reducer.current_torch_model = mocks["autoencoder"]
@@ -63,14 +64,19 @@ class TestReducer:
 
         # 3. The result should be the actual numpy array from the mocked dimred_coords
         assert isinstance(result, np.ndarray)
-        assert result.shape == (1, 2)  # Check expected shape of dimensionality reduction coordinates
+        assert result.shape == (
+            1,
+            2,
+        )  # Check expected shape of dimensionality reduction coordinates
         # Verify it's actually the same array we created
-        np.testing.assert_array_equal(result, dimred_coords)  # CHANGED: umap_coords -> dimred_coords
-        
+        np.testing.assert_array_equal(
+            result, dimred_coords
+        )  # CHANGED: umap_coords -> dimred_coords
+
         # 4. Verify timing info is returned
         assert isinstance(timing_info, dict)
-        assert 'autoencoder_time' in timing_info
-        assert 'dimred_time' in timing_info
+        assert "autoencoder_time" in timing_info
+        assert "dimred_time" in timing_info
 
     def test_reduce_during_model_loading(self, reducer, mock_event):
         """Test that reduce() returns None when models are loading"""
@@ -86,7 +92,7 @@ class TestReducer:
         # Verify result is None when models are loading
         assert result is None
         assert isinstance(timing_info, dict)
-        
+
         # Models should not be called
         reducer.current_torch_model.predict.assert_not_called()
         reducer.current_dim_reduction_model.predict.assert_not_called()
@@ -98,7 +104,9 @@ class TestReducer:
             patch(
                 "src.arroyo_reduction.redis_model_store.RedisModelStore", autospec=True
             ) as redis_class_mock,
-            patch("mlex_utils.mlflow_utils.mlflow_model_client.MLflowModelClient") as mlflow_client_mock,
+            patch(
+                "mlex_utils.mlflow_utils.mlflow_model_client.MLflowModelClient"
+            ) as mlflow_client_mock,
             patch(
                 "src.arroyo_reduction.reducer.LatentSpaceReducer._subscribe_to_model_updates"
             ),
@@ -121,14 +129,15 @@ class TestReducer:
 
             # Configure the load_model method to handle version parameter
             def load_model_side_effect(name, version=None):
-                if 'autoencoder' in name:
+                if "autoencoder" in name:
                     return mock_autoencoder
                 return mock_dimred
-            
+
             mock_mlflow_client.load_model.side_effect = load_model_side_effect
 
             # Import the real class - this needs to be done AFTER setting up the mocks
             import sys
+
             if "src.arroyo_reduction.reducer" in sys.modules:
                 del sys.modules["src.arroyo_reduction.reducer"]
 
@@ -150,14 +159,14 @@ class TestReducer:
             # Verify models were loaded with parsed version
             assert mock_mlflow_client.load_model.call_count == 2
             calls = mock_mlflow_client.load_model.call_args_list
-            
+
             # First call should be autoencoder with version='3'
             assert calls[0][0][0] == "test_autoencoder"
-            assert calls[0][1]['version'] == '3'
-            
+            assert calls[0][1]["version"] == "3"
+
             # Second call should be dimred with version='2'
             assert calls[1][0][0] == "test_dimred"
-            assert calls[1][1]['version'] == '2'
+            assert calls[1][1]["version"] == "2"
 
             # Verify loading flags are set correctly during initialization
             assert not reducer.is_loading_model
@@ -173,7 +182,9 @@ class TestReducer:
 
         # Create the patch for MLflowClient and redis before importing anything
         with (
-            patch("mlex_utils.mlflow_utils.mlflow_model_client.MLflowModelClient") as mlflow_client_mock,
+            patch(
+                "mlex_utils.mlflow_utils.mlflow_model_client.MLflowModelClient"
+            ) as mlflow_client_mock,
             patch(
                 "src.arroyo_reduction.redis_model_store.RedisModelStore"
             ) as redis_mock,
@@ -196,7 +207,7 @@ class TestReducer:
                     "new_dimred": mock_new_dimred,
                 }
                 return model_map.get(name, MagicMock())
-            
+
             mock_mlflow_client.load_model.side_effect = load_model_side_effect
 
             # Set up mock store - return identifiers without versions for initial load
@@ -207,6 +218,7 @@ class TestReducer:
 
             # Import the real class
             import sys
+
             if "src.arroyo_reduction.reducer" in sys.modules:
                 del sys.modules["src.arroyo_reduction.reducer"]
 
@@ -235,13 +247,12 @@ class TestReducer:
             assert reducer.autoencoder_model_name == "new_autoencoder:5"
 
             # Verify load_model was called with parsed name and version
-            mock_mlflow_client.load_model.assert_any_call("new_autoencoder", version="5")
+            mock_mlflow_client.load_model.assert_any_call(
+                "new_autoencoder", version="5"
+            )
 
             # Create update for dimred model with version
-            dimred_update = {
-                "model_type": "dimred", 
-                "model_name": "new_dimred:3"
-            }
+            dimred_update = {"model_type": "dimred", "model_name": "new_dimred:3"}
 
             # Handle dimred update
             reducer._handle_model_update(dimred_update)
@@ -264,7 +275,9 @@ class TestReducer:
         """Test handling duplicate model update notifications with version"""
         # Create the patch for MLflowClient and redis before importing anything
         with (
-            patch("mlex_utils.mlflow_utils.mlflow_model_client.MLflowModelClient") as mlflow_client_mock,
+            patch(
+                "mlex_utils.mlflow_utils.mlflow_model_client.MLflowModelClient"
+            ) as mlflow_client_mock,
             patch(
                 "src.arroyo_reduction.redis_model_store.RedisModelStore"
             ) as redis_mock,
@@ -286,6 +299,7 @@ class TestReducer:
 
             # Import the real class
             import sys
+
             if "src.arroyo_reduction.reducer" in sys.modules:
                 del sys.modules["src.arroyo_reduction.reducer"]
 
@@ -325,7 +339,9 @@ class TestReducer:
         """Test that loading flags are set and reset correctly during model update"""
         # Create the patch for MLflowClient and redis before importing anything
         with (
-            patch("mlex_utils.mlflow_utils.mlflow_model_client.MLflowModelClient") as mlflow_client_mock,
+            patch(
+                "mlex_utils.mlflow_utils.mlflow_model_client.MLflowModelClient"
+            ) as mlflow_client_mock,
             patch(
                 "src.arroyo_reduction.redis_model_store.RedisModelStore"
             ) as redis_mock,
@@ -365,8 +381,8 @@ class TestReducer:
             reducer._handle_model_update(update)
 
             # Verify flags are reset to False after loading completes
-            assert reducer.is_loading_model == False
-            assert reducer.loading_model_type == None
+            assert reducer.is_loading_model is False
+            assert reducer.loading_model_type is None
 
             # Test with exception during model loading
             mock_mlflow_client.load_model.side_effect = Exception("Test error")
@@ -379,8 +395,8 @@ class TestReducer:
             reducer._handle_model_update(update)
 
             # Verify flags are reset even after exception
-            assert reducer.is_loading_model == False
-            assert reducer.loading_model_type == None
+            assert reducer.is_loading_model is False
+            assert reducer.loading_model_type is None
 
     def test_subscribe_to_model_updates(self):
         """Test subscribing to model updates"""

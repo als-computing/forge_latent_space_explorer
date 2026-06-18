@@ -1,17 +1,16 @@
 import json
+
+# Configure logging at the earliest possible point
+import logging
 import os
 import sys
 from uuid import uuid4
 
-# Configure logging at the earliest possible point
-import logging
-import sys
-
 # Set up basic configuration
 logging.basicConfig(
     level=logging.INFO,  # Use DEBUG to see all logs
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[logging.StreamHandler(sys.stdout)]
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)],
 )
 
 # Create logger for this module
@@ -23,14 +22,19 @@ logging.getLogger("lse").setLevel(logging.INFO)
 
 # Force propagation for all existing lse loggers
 for name in logging.root.manager.loggerDict:
-    if name.startswith('lse.'):
+    if name.startswith("lse."):
         logging.getLogger(name).propagate = True
 
-from dash import Input, Output, html
-from dotenv import load_dotenv
+from dash import Input, Output, html  # noqa: E402
+from dotenv import load_dotenv  # noqa: E402
 
-from src.app_layout import app, clustering_models, dim_reduction_models, mlex_components
-from src.callbacks.display import (  # noqa: F401
+from src.app_layout import (  # noqa: E402
+    app,
+    clustering_models,
+    dim_reduction_models,
+    mlex_components,
+)
+from src.callbacks.display import (  # noqa: F401, E402
     clear_selections,
     disable_buttons,
     go_to_first_page,
@@ -43,7 +47,7 @@ from src.callbacks.display import (  # noqa: F401
     update_heatmap,
     update_project_name,
 )
-from src.callbacks.execute import (  # noqa: F401
+from src.callbacks.execute import (  # noqa: F401, E402
     allow_run_clustering,
     allow_show_clusters,
     allow_show_feature_vectors,
@@ -52,23 +56,22 @@ from src.callbacks.execute import (  # noqa: F401
     run_clustering,
     run_latent_space,
 )
-from src.callbacks.infrastructure_check import (  # noqa: F401
+from src.callbacks.experiment_replay import (  # noqa: F401, E402
+    filter_experiment_by_range,
+    load_experiment_replay,
+    load_experiment_uuids,
+    toggle_load_button,
+)
+from src.callbacks.infrastructure_check import (  # noqa: F401, E402
     check_infra_state,
     update_infra_state,
 )
-from src.callbacks.live_mode import (  # noqa: F401
+from src.callbacks.live_mode import (  # noqa: F401, E402
     set_live_latent_vectors,
     toggle_controls,
     toggle_pause_button,
     toggle_pause_button_go_live,
     update_data_project_dict,
-)
-# Add this to the imports at the top
-from src.callbacks.experiment_replay import (  # noqa: F401
-    load_experiment_uuids,
-    toggle_load_button,
-    load_experiment_replay,
-    filter_experiment_by_range,
 )
 
 load_dotenv(".env")

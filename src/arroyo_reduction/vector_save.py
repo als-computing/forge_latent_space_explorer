@@ -3,7 +3,6 @@ import logging
 import time
 
 import aiosqlite
-from arroyopy.operator import Operator
 from arroyopy.publisher import Publisher
 
 from .schemas import LatentSpaceEvent
@@ -27,7 +26,8 @@ class VectorSavePublisher(Publisher):
         if not self._db_initialized:
             if self.db is None:
                 self.db = await aiosqlite.connect(self.db_path)
-            await self.db.execute("""
+            await self.db.execute(
+                """
                 CREATE TABLE IF NOT EXISTS vectors (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     tiled_url TEXT NOT NULL,
@@ -40,7 +40,8 @@ class VectorSavePublisher(Publisher):
                     autoencoder_time REAL,
                     dimred_time REAL
                 )
-            """)
+            """
+            )
             await self.db.commit()
             self._db_initialized = True
 
@@ -61,7 +62,9 @@ class VectorSavePublisher(Publisher):
         vector_str = json.dumps(feature_vector)
 
         await self.db.execute(
-            "INSERT INTO vectors (tiled_url, feature_vector, autoencoder_model, dimred_model, experiment_name, timestamp, total_processing_time, autoencoder_time, dimred_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "INSERT INTO vectors (tiled_url, feature_vector, autoencoder_model,"
+            " dimred_model, experiment_name, timestamp, total_processing_time,"
+            " autoencoder_time, dimred_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 tiled_url,
                 vector_str,

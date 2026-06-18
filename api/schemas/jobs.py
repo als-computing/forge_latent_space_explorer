@@ -6,8 +6,8 @@ from pydantic import BaseModel
 class MlflowModelOption(BaseModel):
     label: str
     value: str | None
-    algorithm: str = ''
-    date: str = ''
+    algorithm: str = ""
+    date: str = ""
 
 
 class ModelVersionOption(BaseModel):
@@ -47,14 +47,14 @@ class JobSubmitResponse(BaseModel):
 class FlowRunOption(BaseModel):
     value: str
     label: str
-    project_name: str = ''
-    algorithm: str = ''
-    autoencoder_model: str = ''
-    date: str = ''
-    state: str = ''
+    project_name: str = ""
+    algorithm: str = ""
+    autoencoder_model: str = ""
+    date: str = ""
+    state: str = ""
 
 
 class JobStatusResponse(BaseModel):
     ready: bool
-    state: str | None = None    # Prefect state of the relevant child job
+    state: str | None = None  # Prefect state of the relevant child job
     result_uri: str | None = None

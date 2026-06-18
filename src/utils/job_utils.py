@@ -1,4 +1,3 @@
-import json
 import logging
 import os
 from urllib.parse import urljoin
@@ -12,6 +11,7 @@ MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "http://mlflow:5000")
 
 logger = logging.getLogger(__name__)
 mlflow_client = MLflowModelClient()
+
 
 def parse_tiled_url(url, user, project_name, tiled_base_path="/api/v1/metadata"):
     """
@@ -85,11 +85,7 @@ def parse_job_params(
 
 
 def parse_clustering_job_params(
-    data_project,
-    model_parameters,
-    user,
-    project_name,
-    clustering_params
+    data_project, model_parameters, user, project_name, clustering_params
 ):
     """
     Parse job parameters for clustering

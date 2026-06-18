@@ -484,7 +484,8 @@ def get_experiment_dataframe(container_name, experiment_name, uuid, beamline_pat
 
         if df is not None and not df.empty:
             logger.info(
-                f"Successfully loaded DataFrame with shape {df.shape} from {container_name}/{experiment_name}/{uuid}/feature_vectors"
+                f"Successfully loaded DataFrame with shape {df.shape} from "
+                f"{container_name}/{experiment_name}/{uuid}/feature_vectors"
             )
         else:
             logger.warning(

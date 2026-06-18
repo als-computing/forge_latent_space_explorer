@@ -110,7 +110,7 @@ class VAEModelWrapper(mlflow.pyfunc.PythonModel):
             ]
         )
 
-        print(f"✓ VAE model loaded successfully")
+        print("✓ VAE model loaded successfully")
 
     def predict(self, context, model_input):
         """

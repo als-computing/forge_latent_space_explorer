@@ -1,7 +1,6 @@
 import json
 import logging
 import os
-import time
 import traceback
 import uuid
 from datetime import datetime
@@ -10,6 +9,7 @@ import pytz
 from dash import Input, Output, State, callback
 from dash.exceptions import PreventUpdate
 from file_manager.data_project import DataProject
+from mlex_utils.mlflow_utils.mlflow_model_client import MLflowModelClient
 from mlex_utils.prefect_utils.core import (
     get_children_flow_run_ids,
     get_flow_run_name,
@@ -29,7 +29,6 @@ from src.utils.job_utils import (
     parse_job_params,
     parse_model_params,
 )
-from mlex_utils.mlflow_utils.mlflow_model_client import MLflowModelClient
 from src.utils.plot_utils import generate_notification
 
 MODE = os.getenv("MODE", "")
@@ -45,11 +44,10 @@ REDIS_PORT = int(os.getenv("REDIS_PORT", 6666))
 logger = logging.getLogger(__name__)
 mlflow_client = MLflowModelClient()
 
+
 @callback(
     Output("mlflow-model-dropdown", "options", allow_duplicate=True),
-    Input(
-        "sidebar", "active_item"
-    ),
+    Input("sidebar", "active_item"),
     prevent_initial_call="initial_duplicate",
 )
 def load_mlflow_models_on_render(active_item):
@@ -459,11 +457,7 @@ def run_clustering(
 
         clustering_params = clustering_models[model_name]
         job_params = parse_clustering_job_params(
-            data_project_fvec,
-            model_parameters,
-            USER,
-            project_name,
-            clustering_params
+            data_project_fvec, model_parameters, USER, project_name, clustering_params
         )
 
         if MODE == "dev":
@@ -580,32 +574,41 @@ def filter_clustering_dropdown(options):
     """
     if not options:
         return []
-    
+
     # Get list of clustering model names for comparison
-    clustering_model_names = [model.lower() for model in clustering_models.modelname_list]
-    
+    clustering_model_names = [
+        model.lower() for model in clustering_models.modelname_list
+    ]
+
     # Filter job options
     filtered_options = []
     for job_option in options:
         job_label = job_option.get("label", "").lower()
-        
+
         # Check if this job was created by any of the clustering models
         is_clustering_job = False
         for model_name in clustering_model_names:
             if model_name in job_label:
                 is_clustering_job = True
                 break
-        
+
         # If no clustering model is mentioned, check if it has clustering-related terms
         if not is_clustering_job:
-            clustering_terms = ["cluster", "kmeans", "dbscan", "hdbscan", "agglomerative", "hierarchical"]
+            clustering_terms = [
+                "cluster",
+                "kmeans",
+                "dbscan",
+                "hdbscan",
+                "agglomerative",
+                "hierarchical",
+            ]
             for term in clustering_terms:
                 if term in job_label:
                     is_clustering_job = True
                     break
-        
+
         # Add to filtered options if it's a clustering job
         if is_clustering_job:
             filtered_options.append(job_option)
-    
+
     return filtered_options

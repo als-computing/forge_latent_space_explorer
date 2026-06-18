@@ -31,7 +31,9 @@ class DimRedModelWrapper(mlflow.pyfunc.PythonModel):
         # Load model
         model_path = context.artifacts.get("dimred_model")
         if not model_path or not os.path.exists(model_path):
-            raise FileNotFoundError(f"Dimensionality reduction model not found in artifacts")
+            raise FileNotFoundError(
+                "Dimensionality reduction model not found in artifacts"
+            )
 
         print(f"Loading dimensionality reduction model from {model_path}")
         self.model = joblib.load(model_path)
@@ -49,7 +51,9 @@ class DimRedModelWrapper(mlflow.pyfunc.PythonModel):
             Dictionary with coordinates
         """
         if self.model is None:
-            raise RuntimeError("Dimensionality reduction model not loaded. Call load_context first.")
+            raise RuntimeError(
+                "Dimensionality reduction model not loaded. Call load_context first."
+            )
 
         # Validate input
         if not isinstance(model_input, np.ndarray):
@@ -124,7 +128,7 @@ def save_dimred_model_with_wrapper(
                     "model_type": model_config["type"],
                     "joblib_size_mb": joblib_size,
                     "using_wrapper": True,
-                    "input_dim": model_config["input_dim"]
+                    "input_dim": model_config["input_dim"],
                 }
             )
 

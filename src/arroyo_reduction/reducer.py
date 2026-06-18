@@ -1,17 +1,13 @@
 import logging
 import os
-import sys
 import time
 from abc import ABC, abstractmethod
-from pathlib import Path
 
 import numpy as np
 import redis
 import torch
-import torchvision.transforms as transforms
 from arroyosas.schemas import RawFrameEvent
 from mlex_utils.mlflow_utils.mlflow_model_client import MLflowModelClient
-from PIL import Image
 
 from .redis_model_store import RedisModelStore
 
@@ -173,12 +169,24 @@ class LatentSpaceReducer(Reducer):
         # If models are missing (e.g. subscriber thread hadn't connected yet at startup),
         # check Redis now and trigger a load so frames aren't skipped indefinitely.
         if self.current_torch_model is None or self.current_dim_reduction_model is None:
-            ae_name = self.redis_model_store.get_autoencoder_model() if self.redis_model_store else None
-            dr_name = self.redis_model_store.get_dimred_model() if self.redis_model_store else None
+            ae_name = (
+                self.redis_model_store.get_autoencoder_model()
+                if self.redis_model_store
+                else None
+            )
+            dr_name = (
+                self.redis_model_store.get_dimred_model()
+                if self.redis_model_store
+                else None
+            )
             if ae_name and dr_name:
                 logger.info("Models not loaded but Redis has selections — loading now")
-                self._handle_model_update({"model_type": "autoencoder", "model_name": ae_name})
-                self._handle_model_update({"model_type": "dimred", "model_name": dr_name})
+                self._handle_model_update(
+                    {"model_type": "autoencoder", "model_name": ae_name}
+                )
+                self._handle_model_update(
+                    {"model_type": "dimred", "model_name": dr_name}
+                )
             return None, timing_info
 
         try:
@@ -187,7 +195,11 @@ class LatentSpaceReducer(Reducer):
 
             # Additional debugging for the image data
             logger.info(
-                f"Get input image shape: {img_array.shape}, dtype: {img_array.dtype}. Image min: {img_array.min()}, max: {img_array.max()}"
+                "Get input image shape: %s, dtype: %s. Image min: %s, max: %s",
+                img_array.shape,
+                img_array.dtype,
+                img_array.min(),
+                img_array.max(),
             )
 
         except Exception as e:
@@ -271,7 +283,9 @@ class LatentSpaceReducer(Reducer):
                     )
                     time.sleep(5)
                 except Exception as e:
-                    logger.error(f"Unexpected error in model update listener: {e}. Retrying in 10s...")
+                    logger.error(
+                        f"Unexpected error in model update listener: {e}. Retrying in 10s..."
+                    )
                     time.sleep(10)
 
         thread = threading.Thread(target=listen_for_updates, daemon=True)
@@ -381,7 +395,7 @@ class LatentSpaceReducer(Reducer):
             finally:
                 # Reset loading flags
                 self._update_loading_state(False)
-                logger.info(f"Model update complete. Ready to process images.")
+                logger.info("Model update complete. Ready to process images.")
         except Exception as e:
             # Ensure we reset flags even if there's an error
             self._update_loading_state(False)
