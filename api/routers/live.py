@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 
@@ -11,6 +12,7 @@ from services import live_service
 ARROYO_HOST = os.getenv("ARROYO_HOST", "arroyo_xps")
 ARROYO_PORT = int(os.getenv("ARROYO_PORT", "8765"))
 ARROYO_WS = f"ws://{ARROYO_HOST}:{ARROYO_PORT}/lse_operator"
+SSE_KEEPALIVE_INTERVAL = int(os.getenv("SSE_KEEPALIVE_INTERVAL", "15"))
 
 router = APIRouter()
 
@@ -53,7 +55,7 @@ def compute_live_heatmap(req: HeatmapRequest):
 
 
 @router.get("/stream")
-async def stream():
+async def stream(keepalive: int = SSE_KEEPALIVE_INTERVAL):
     try:
         ws_check = await websockets.connect(ARROYO_WS)
         await ws_check.close()
@@ -62,15 +64,19 @@ async def stream():
         raise HTTPException(status_code=502, detail=f"Arroyo unreachable: {e}")
 
     async def event_generator():
-        import asyncio
-
         backoff = 1
         while True:
             try:
                 async with websockets.connect(ARROYO_WS) as ws:
                     backoff = 1
-                    async for message in ws:
-                        yield f"data: {message}\n\n"
+                    while True:
+                        try:
+                            message = await asyncio.wait_for(
+                                ws.recv(), timeout=keepalive
+                            )
+                            yield f"data: {message}\n\n"
+                        except asyncio.TimeoutError:
+                            yield ": keepalive\n\n"
             except Exception:
                 logger.exception("Live stream error, retrying in %ds", backoff)
                 yield f"event: reconnecting\ndata: retrying in {backoff}s\n\n"
