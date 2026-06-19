@@ -76,6 +76,9 @@ async def stream(keepalive: int = SSE_KEEPALIVE_INTERVAL):
                             )
                             yield f"data: {message}\n\n"
                         except asyncio.TimeoutError:
+                            logger.debug(
+                                "SSE keepalive sent (no message for %ds)", keepalive
+                            )
                             yield ": keepalive\n\n"
             except Exception:
                 logger.exception("Live stream error, retrying in %ds", backoff)
