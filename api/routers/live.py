@@ -76,7 +76,7 @@ async def stream(keepalive: int = SSE_KEEPALIVE_INTERVAL):
                             )
                             yield f"data: {message}\n\n"
                         except asyncio.TimeoutError:
-                            logger.debug(
+                            logger.info(
                                 "SSE keepalive sent (no message for %ds)", keepalive
                             )
                             yield ": keepalive\n\n"
