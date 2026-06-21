@@ -1,5 +1,6 @@
 import logging
 import os
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -20,7 +21,19 @@ logger = logging.getLogger(__name__)
 root_path = os.getenv("ROOT_PATH", "")
 UI_DIST = Path("/app/ui/dist")
 
-app = FastAPI(title="Latent Space Explorer API", root_path=root_path)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    task = live.start_listener()
+    yield
+    task.cancel()
+    try:
+        await task
+    except Exception:
+        pass
+
+
+app = FastAPI(title="Latent Space Explorer API", root_path=root_path, lifespan=lifespan)
 
 app.include_router(models.router, prefix="/api/v1/models", tags=["models"])
 app.include_router(data.router, prefix="/api/v1/data", tags=["data"])

@@ -17,6 +17,30 @@ router = APIRouter()
 
 logger = logging.getLogger(__name__)
 
+_subscribers: set[asyncio.Queue] = set()
+
+
+async def _arroyo_listener():
+    backoff = 1
+    while True:
+        try:
+            async with websockets.connect(ARROYO_WS) as ws:
+                backoff = 1
+                logger.info("Arroyo WebSocket connected at %s", ARROYO_WS)
+                async for message in ws:
+                    for q in list(_subscribers):
+                        q.put_nowait(message)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("Arroyo WebSocket error, retrying in %ds", backoff)
+            await asyncio.sleep(backoff)
+            backoff = min(backoff * 2, 30)
+
+
+def start_listener() -> asyncio.Task:
+    return asyncio.create_task(_arroyo_listener())
+
 
 class LiveStartRequest(BaseModel):
     autoencoder_model: str  # "name:version"
@@ -55,26 +79,16 @@ def compute_live_heatmap(req: HeatmapRequest):
 
 @router.get("/stream")
 async def stream():
-    try:
-        ws_check = await websockets.connect(ARROYO_WS)
-        await ws_check.close()
-    except Exception as e:
-        logger.exception("Cannot reach arroyo WebSocket at %s", ARROYO_WS)
-        raise HTTPException(status_code=502, detail=f"Arroyo unreachable: {e}")
+    q: asyncio.Queue = asyncio.Queue()
+    _subscribers.add(q)
 
     async def event_generator():
-        backoff = 1
-        while True:
-            try:
-                async with websockets.connect(ARROYO_WS) as ws:
-                    backoff = 1
-                    async for message in ws:
-                        yield f"data: {message}\n\n"
-            except Exception:
-                logger.exception("Live stream error, retrying in %ds", backoff)
-                yield f"event: reconnecting\ndata: retrying in {backoff}s\n\n"
-                await asyncio.sleep(backoff)
-                backoff = min(backoff * 2, 30)
+        try:
+            while True:
+                message = await q.get()
+                yield f"data: {message}\n\n"
+        finally:
+            _subscribers.discard(q)
 
     return StreamingResponse(
         event_generator(),
